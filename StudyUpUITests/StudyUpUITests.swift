@@ -92,7 +92,8 @@ final class StudyUpUITests: XCTestCase {
             .matching(NSPredicate(format: "label CONTAINS[c] 'process and a thread'")).firstMatch
         XCTAssertTrue(banner.waitForExistence(timeout: 15))
         banner.press(forDuration: 1.0)
-        let right = springboard.buttons["Right"]
+        // The content extension labels each button with where it sends the card next.
+        let right = springboard.buttons["Right · 10m"]
         XCTAssertTrue(right.waitForExistence(timeout: 5))
         attachScreenshot("10-expanded-reminder", springboard)
         right.tap()

@@ -6,7 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0842B4603088165400BAF8BD /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0842B45F3088165400BAF8BD /* UserNotifications.framework */; };
+		0842B4623088165400BAF8BD /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0842B4613088165400BAF8BD /* UserNotificationsUI.framework */; };
+		0842B46C3088165400BAF8BD /* StudyUpNotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0842B45D3088165400BAF8BD /* StudyUpNotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		0842B46A3088165400BAF8BD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 08FDC5FC3087D2FE00DA74BF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0842B45C3088165400BAF8BD;
+			remoteInfo = StudyUpNotificationContent;
+		};
 		08FDC6123087D2FF00DA74BF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 08FDC5FC3087D2FE00DA74BF /* Project object */;
@@ -23,13 +36,48 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		0842B46D3088165400BAF8BD /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0842B46C3088165400BAF8BD /* StudyUpNotificationContent.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		0842B45D3088165400BAF8BD /* StudyUpNotificationContent.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StudyUpNotificationContent.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0842B45F3088165400BAF8BD /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		0842B4613088165400BAF8BD /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = SDKROOT; };
 		08FDC6043087D2FE00DA74BF /* StudyUp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StudyUp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08FDC6113087D2FF00DA74BF /* StudyUpTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyUpTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08FDC61B3087D2FF00DA74BF /* StudyUpUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StudyUpUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0842B4703088165400BAF8BD /* Exceptions for "StudyUpNotificationContent" folder in "StudyUpNotificationContent" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0842B45C3088165400BAF8BD /* StudyUpNotificationContent */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		0842B4633088165400BAF8BD /* StudyUpNotificationContent */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0842B4703088165400BAF8BD /* Exceptions for "StudyUpNotificationContent" folder in "StudyUpNotificationContent" target */,
+			);
+			path = StudyUpNotificationContent;
+			sourceTree = "<group>";
+		};
 		08FDC6063087D2FE00DA74BF /* StudyUp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = StudyUp;
@@ -48,6 +96,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0842B45A3088165400BAF8BD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0842B4623088165400BAF8BD /* UserNotificationsUI.framework in Frameworks */,
+				0842B4603088165400BAF8BD /* UserNotifications.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		08FDC6013087D2FE00DA74BF /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -72,12 +129,23 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0842B45E3088165400BAF8BD /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0842B45F3088165400BAF8BD /* UserNotifications.framework */,
+				0842B4613088165400BAF8BD /* UserNotificationsUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		08FDC5FB3087D2FE00DA74BF = {
 			isa = PBXGroup;
 			children = (
 				08FDC6063087D2FE00DA74BF /* StudyUp */,
 				08FDC6143087D2FF00DA74BF /* StudyUpTests */,
 				08FDC61E3087D2FF00DA74BF /* StudyUpUITests */,
+				0842B4633088165400BAF8BD /* StudyUpNotificationContent */,
+				0842B45E3088165400BAF8BD /* Frameworks */,
 				08FDC6053087D2FE00DA74BF /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +156,7 @@
 				08FDC6043087D2FE00DA74BF /* StudyUp.app */,
 				08FDC6113087D2FF00DA74BF /* StudyUpTests.xctest */,
 				08FDC61B3087D2FF00DA74BF /* StudyUpUITests.xctest */,
+				0842B45D3088165400BAF8BD /* StudyUpNotificationContent.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +164,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0842B45C3088165400BAF8BD /* StudyUpNotificationContent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0842B4713088165400BAF8BD /* Build configuration list for PBXNativeTarget "StudyUpNotificationContent" */;
+			buildPhases = (
+				0842B4593088165400BAF8BD /* Sources */,
+				0842B45A3088165400BAF8BD /* Frameworks */,
+				0842B45B3088165400BAF8BD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0842B4633088165400BAF8BD /* StudyUpNotificationContent */,
+			);
+			name = StudyUpNotificationContent;
+			packageProductDependencies = (
+			);
+			productName = StudyUpNotificationContent;
+			productReference = 0842B45D3088165400BAF8BD /* StudyUpNotificationContent.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		08FDC6033087D2FE00DA74BF /* StudyUp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 08FDC6253087D2FF00DA74BF /* Build configuration list for PBXNativeTarget "StudyUp" */;
@@ -102,10 +193,12 @@
 				08FDC6003087D2FE00DA74BF /* Sources */,
 				08FDC6013087D2FE00DA74BF /* Frameworks */,
 				08FDC6023087D2FE00DA74BF /* Resources */,
+				0842B46D3088165400BAF8BD /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0842B46B3088165400BAF8BD /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				08FDC6063087D2FE00DA74BF /* StudyUp */,
@@ -173,6 +266,9 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					0842B45C3088165400BAF8BD = {
+						CreatedOnToolsVersion = 26.6;
+					};
 					08FDC6033087D2FE00DA74BF = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -203,11 +299,19 @@
 				08FDC6033087D2FE00DA74BF /* StudyUp */,
 				08FDC6103087D2FF00DA74BF /* StudyUpTests */,
 				08FDC61A3087D2FF00DA74BF /* StudyUpUITests */,
+				0842B45C3088165400BAF8BD /* StudyUpNotificationContent */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0842B45B3088165400BAF8BD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		08FDC6023087D2FE00DA74BF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -232,6 +336,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0842B4593088165400BAF8BD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		08FDC6003087D2FE00DA74BF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -256,6 +367,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0842B46B3088165400BAF8BD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0842B45C3088165400BAF8BD /* StudyUpNotificationContent */;
+			targetProxy = 0842B46A3088165400BAF8BD /* PBXContainerItemProxy */;
+		};
 		08FDC6133087D2FF00DA74BF /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 08FDC6033087D2FE00DA74BF /* StudyUp */;
@@ -269,6 +385,62 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0842B46E3088165400BAF8BD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9UGBQVN5U2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StudyUpNotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StudyUpNotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ikumar55.StudyUp.StudyUpNotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		0842B46F3088165400BAF8BD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9UGBQVN5U2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StudyUpNotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StudyUpNotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ikumar55.StudyUp.StudyUpNotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		08FDC6233087D2FF00DA74BF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -541,6 +713,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0842B4713088165400BAF8BD /* Build configuration list for PBXNativeTarget "StudyUpNotificationContent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0842B46E3088165400BAF8BD /* Debug */,
+				0842B46F3088165400BAF8BD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		08FDC5FF3087D2FE00DA74BF /* Build configuration list for PBXProject "StudyUp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

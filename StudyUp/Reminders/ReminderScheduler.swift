@@ -4,8 +4,8 @@ import SwiftData
 import UserNotifications
 
 /// Keeps the pending study-reminder notifications in sync with what's due.
-/// iOS can't wake the app on demand, so today's and tomorrow's reminders are planned ahead
-/// and replanned whenever the app runs.
+/// iOS can't wake the app on demand, so reminders are planned several days ahead
+/// (assuming nothing is reviewed in between) and replanned whenever the app runs.
 @Observable
 final class ReminderScheduler {
     static let shared = ReminderScheduler()
@@ -14,6 +14,9 @@ final class ReminderScheduler {
     private(set) var nextReminderDate: Date?
 
     private let center = UNUserNotificationCenter.current()
+    /// iOS keeps at most 64 pending notifications per app; leave room for a test reminder.
+    private static let pendingBudget = 60
+    private static let maxDaysAhead = 7
     private static let plannedIdentifierPrefix = "reminder-"
     private var pendingUpdate: Task<Void, Never>?
 
@@ -82,13 +85,16 @@ final class ReminderScheduler {
         let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: now)
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
         let newCardsPerDay = StudySettings.newCardsPerDay()
         let fsrs = currentFSRS()
-        let days = [
-            (today, StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context, now: now)),
-            (tomorrow, newCardsPerDay),
-        ]
+        // As many days as fit in the pending-notification budget: 7 days at 8 a day, 3 at 20.
+        let dayCount = min(Self.maxDaysAhead, max(2, Self.pendingBudget / max(settings.maxPerDay, 1)))
+        let days = (0..<dayCount).map { offset in
+            (
+                calendar.date(byAdding: .day, value: offset, to: today)!,
+                offset == 0 ? StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context, now: now) : newCardsPerDay
+            )
+        }
 
         var planned: [(request: UNNotificationRequest, fireDate: Date)] = []
         for (dayStart, newLimit) in days {

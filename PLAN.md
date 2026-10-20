@@ -37,6 +37,7 @@ StudyUp/
   Settings/      UserDefaults keys and defaults
   Support/       Formatting, Markdown text, sample data
   Views/         Home, Folder, CardEditor, StudySession, Settings
+StudyUpNotificationContent/  Notification Content Extension: question + answer on long-press; reads the app's payload keys
 StudyUpTests/    Unit tests (Swift Testing)
 StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 ```
@@ -65,11 +66,11 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [x] "Keep going" after a short session; "Next reminder at …" on the home screen; a test-reminder button
 - [x] All sheets and sessions are presented from one place (`Presenter`), so a reminder tap always opens its review
 
-**2b: Answer from the notification**
+**2b: Answer from the notification** ✅ (2026-10-20)
 - [x] Wrong/Right/Easy action buttons, handled in the background without opening the app
 - [x] Stale reminders (card reviewed or deleted since) are cleared from Notification Center; stale grades are ignored
-- [ ] Notification Content Extension: long-press a reminder to reveal the answer (and show the intervals on the buttons)
-- [ ] Background refresh (BGAppRefreshTask), so reminders stay current even if the app isn't opened
+- [x] Notification Content Extension (`StudyUpNotificationContent/`): long-press shows the answer; buttons show intervals ("Right · 3d")
+- [x] Plan up to 7 days ahead within the 64-notification limit, so reminders keep coming even if the app isn't opened. This replaced BGAppRefreshTask, which iOS runs unpredictably.
 
 ### Phase 3: Quality of life
 - [ ] Markdown file import, including from iCloud Drive (for writing cards on the Mac), without duplicates
@@ -90,7 +91,7 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 
 ## Notification design notes
 
-- iOS keeps at most **64 pending local notifications** per app, and apps can't run code in the background on demand. So reminders are **planned ahead** (today and tomorrow) and replanned whenever the app runs.
+- iOS keeps at most **64 pending local notifications** per app, and apps can't run code in the background on demand. So reminders are **planned ahead** (up to 7 days, within a 60-notification budget) and replanned whenever the app runs, including when a card is graded from a notification.
 - Number of reminders per day = min(maximum per day, due cards ÷ cards per reminder), spaced evenly across the remaining active hours.
 - Each reminder names a specific card. Tapping it opens a session with that card plus up to N−1 more due cards.
 - Cards marked Wrong come back through the 1m/10m steps. In the app they reappear in the same session; otherwise in the next reminder.
