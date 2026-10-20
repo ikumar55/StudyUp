@@ -112,8 +112,14 @@ struct StudySessionView: View {
                  ? "Nothing is due right now."
                  : "You reviewed \(session.reviewedCount) \(session.reviewedCount == 1 ? "card" : "cards").")
         } actions: {
-            Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
+            if session.moreDueCount > 0 {
+                Button("Keep Going (\(session.moreDueCount) more)") { session.keepGoing() }
+                    .buttonStyle(.borderedProminent)
+                Button("Done") { dismiss() }
+            } else {
+                Button("Done") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+            }
         }
     }
 

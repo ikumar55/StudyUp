@@ -15,6 +15,15 @@ nonisolated enum IntervalText {
     }
 }
 
+nonisolated enum PlainText {
+    /// Strips inline Markdown for places that can't render it, like notifications.
+    static func from(markdown: String) -> String {
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        guard let attributed = try? AttributedString(markdown: markdown, options: options) else { return markdown }
+        return String(attributed.characters)
+    }
+}
+
 /// Renders inline Markdown (**bold**, *italic*, `code`, links) and keeps line breaks.
 struct MarkdownText: View {
     let source: String

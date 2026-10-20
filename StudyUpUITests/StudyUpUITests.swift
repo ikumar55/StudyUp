@@ -37,6 +37,40 @@ final class StudyUpUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Show Answer"].waitForExistence(timeout: 5))
     }
 
+    @MainActor
+    func testTappingReminderOpensQuickReview() throws {
+        let app = XCUIApplication()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+        app.buttons["Add Sample Cards"].tap()
+
+        // Grant notification permission the first time this simulator runs the app.
+        let turnOn = app.buttons["Turn On Study Reminders"]
+        if turnOn.waitForExistence(timeout: 3) {
+            turnOn.tap()
+            let allow = springboard.alerts.buttons["Allow"]
+            if allow.waitForExistence(timeout: 5) { allow.tap() }
+        }
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Next reminder'")).firstMatch.waitForExistence(timeout: 5))
+        attachScreenshot("6-home-with-reminders", app)
+
+        app.buttons["Settings"].tap()
+        attachScreenshot("7-settings", app)
+        app.buttons["Send a Test Reminder"].tap()
+
+        // The test reminder shows the first sample card's question.
+        let banner = springboard.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS[c] 'process and a thread'")).firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 15))
+        attachScreenshot("8-banner", springboard)
+        banner.tap()
+
+        XCTAssertTrue(app.navigationBars["Quick Review"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["What is the difference between a process and a thread?"].exists)
+        attachScreenshot("9-quick-review", app)
+    }
+
     private func attachScreenshot(_ name: String, _ app: XCUIApplication) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

@@ -76,9 +76,13 @@ struct FolderView: View {
             folder.name = name
         }
         .deleteFolderConfirmation($folderToDelete)
-        .sheet(isPresented: $isAddingCard) { CardEditorView(folder: folder) }
-        .sheet(item: $editingCard) { CardEditorView(card: $0) }
-        .fullScreenCover(item: $session) { StudySessionView(session: $0) }
+        .sheet(isPresented: $isAddingCard, onDismiss: reschedule) { CardEditorView(folder: folder) }
+        .sheet(item: $editingCard, onDismiss: reschedule) { CardEditorView(card: $0) }
+        .fullScreenCover(item: $session, onDismiss: reschedule) { StudySessionView(session: $0) }
+    }
+
+    private func reschedule() {
+        ReminderScheduler.shared.reschedule(context: context)
     }
 
     private func counts(_ cards: [Card], _ remainingNew: Int) -> StudyQueue.Counts {

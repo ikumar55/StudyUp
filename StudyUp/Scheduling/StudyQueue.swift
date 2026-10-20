@@ -47,6 +47,33 @@ enum StudyQueue {
         return learning + review + new.prefix(max(newLimit, 0))
     }
 
+    /// Cards worth reviewing at some point during the day starting at `dayStart`, in study order,
+    /// each paired with the earliest time it should come up.
+    static func reminderCandidates(
+        from cards: [Card], dayStart: Date, newLimit: Int, calendar: Calendar = .current
+    ) -> [(card: Card, availableAt: Date)] {
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)!
+        var learning: [Card] = []
+        var review: [Card] = []
+        var new: [Card] = []
+        for card in cards {
+            switch card.state {
+            case .learning, .relearning:
+                if card.due < dayEnd { learning.append(card) }
+            case .review:
+                if card.due < dayEnd { review.append(card) }
+            case .new:
+                new.append(card)
+            }
+        }
+        learning.sort { $0.due < $1.due }
+        review.sort { $0.due < $1.due }
+        new.sort { $0.createdAt < $1.createdAt }
+        return learning.map { ($0, max($0.due, dayStart)) }
+            + review.map { ($0, dayStart) }
+            + new.prefix(max(newLimit, 0)).map { ($0, dayStart) }
+    }
+
     static func counts(for queue: [Card]) -> Counts {
         queue.reduce(into: Counts()) { counts, card in
             switch card.state {

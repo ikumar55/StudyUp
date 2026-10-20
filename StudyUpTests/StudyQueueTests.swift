@@ -60,6 +60,35 @@ struct StudyQueueTests {
         #expect(subtopic.path == "OS › Memory")
     }
 
+    @Test func reminderCandidatesCoverWholeDay() {
+        let calendar = Calendar.current
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+        let learning = makeCard("learning", state: .learning, due: now.addingTimeInterval(600))
+        let dueTomorrow = makeCard("review tomorrow", state: .review, due: tomorrow.addingTimeInterval(15 * 3600))
+        let dueLater = makeCard("review in 3 days", state: .review, due: tomorrow.addingTimeInterval(3 * 86_400))
+        let newCards = (0..<3).map { makeCard("new \($0)") }
+
+        let candidates = StudyQueue.reminderCandidates(
+            from: [dueLater, dueTomorrow, learning] + newCards, dayStart: tomorrow, newLimit: 2, calendar: calendar
+        )
+        #expect(candidates.map(\.card.front) == ["learning", "review tomorrow", "new 0", "new 1"])
+        // Overdue learning cards and reviews due any time tomorrow are ready from the start of the day.
+        #expect(candidates.allSatisfy { $0.availableAt == tomorrow })
+    }
+
+    @Test func limitedSessionOffersToKeepGoing() {
+        let cards = (0..<4).map { makeCard("new \($0)") }
+        let session = StudySession(title: "Test", cards: Array(cards.prefix(1)), fsrs: FSRS()) {
+            cards.filter { $0.state == .new }
+        }
+        session.grade(.easy, context: context, now: now)
+        #expect(session.current == nil)
+        #expect(session.moreDueCount == 3)
+        session.keepGoing()
+        #expect(session.queue.count == 3)
+        #expect(session.moreDueCount == 0)
+    }
+
     @Test func newCardsStudiedTodayReducesRemaining() {
         let card = makeCard("new")
         let session = StudySession(title: "Test", cards: [card], fsrs: FSRS())

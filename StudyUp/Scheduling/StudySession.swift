@@ -8,22 +8,40 @@ final class StudySession: Identifiable {
     let title: String
     private(set) var queue: [Card]
     private(set) var reviewedCount = 0
+    /// Due cards beyond this session's limit, counted when the session runs out.
+    private(set) var moreDueCount = 0
     private let fsrs: FSRS
+    private var refill: (() -> [Card])?
 
-    init(title: String, cards: [Card], fsrs: FSRS) {
+    init(title: String, cards: [Card], fsrs: FSRS, refill: (() -> [Card])? = nil) {
         self.title = title
         self.queue = cards
         self.fsrs = fsrs
+        self.refill = refill
     }
 
     /// Builds a session from the cards currently due in `scope`, respecting the daily new-card limit.
+    /// - Parameters:
+    ///   - first: A card to show first if it's still due (e.g. the one a reminder showed).
+    ///   - limit: Maximum cards before offering to keep going.
     static func make(
         title: String, scope: StudyScope, context: ModelContext,
-        newCardsPerDay: Int, desiredRetention: Double
+        newCardsPerDay: Int, desiredRetention: Double,
+        startingWith first: Card? = nil, limit: Int? = nil
     ) -> StudySession {
-        let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
-        let queue = StudyQueue.build(from: StudyQueue.cards(in: scope, context: context), newLimit: remainingNew)
-        return StudySession(title: title, cards: queue, fsrs: StudySettings.fsrs(desiredRetention: desiredRetention))
+        let buildQueue = {
+            let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+            return StudyQueue.build(from: StudyQueue.cards(in: scope, context: context), newLimit: remainingNew)
+        }
+        var queue = buildQueue()
+        if let first, let index = queue.firstIndex(where: { $0 === first }) {
+            queue.insert(queue.remove(at: index), at: 0)
+        }
+        let fsrs = StudySettings.fsrs(desiredRetention: desiredRetention)
+        guard let limit, queue.count > limit else {
+            return StudySession(title: title, cards: queue, fsrs: fsrs)
+        }
+        return StudySession(title: title, cards: Array(queue.prefix(limit)), fsrs: fsrs, refill: buildQueue)
     }
 
     var current: Card? { queue.first }
@@ -47,5 +65,16 @@ final class StudySession: Identifiable {
         if card.due <= now.addingTimeInterval(StudyQueue.learnAhead) {
             queue.append(card)
         }
+        if queue.isEmpty, let refill {
+            moreDueCount = refill().count
+        }
+    }
+
+    /// Continues past the session's limit with everything else that's due.
+    func keepGoing() {
+        guard let refill else { return }
+        queue = refill()
+        self.refill = nil
+        moreDueCount = 0
     }
 }
