@@ -3,13 +3,11 @@ import SwiftUI
 
 struct FolderView: View {
     @Environment(\.modelContext) private var context
+    @Environment(Presenter.self) private var presenter
     let folder: Folder
     @AppStorage(StudySettings.newCardsPerDayKey) private var newCardsPerDay = StudySettings.defaultNewCardsPerDay
     @AppStorage(StudySettings.desiredRetentionKey) private var desiredRetention = StudySettings.defaultDesiredRetention
 
-    @State private var session: StudySession?
-    @State private var isAddingCard = false
-    @State private var editingCard: Card?
     @State private var isAddingSubfolder = false
     @State private var isRenaming = false
     @State private var folderToDelete: Folder?
@@ -21,7 +19,7 @@ struct FolderView: View {
             if !folder.allCards.isEmpty {
                 Section {
                     StudyButtonRow(counts: counts(folder.allCards, remainingNew)) {
-                        session = .make(
+                        presenter.session = .make(
                             title: folder.name, scope: .folder(folder), context: context,
                             newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
                         )
@@ -42,10 +40,10 @@ struct FolderView: View {
             }
             Section("Cards") {
                 if cards.isEmpty {
-                    Button("Add your first card", systemImage: "plus") { isAddingCard = true }
+                    Button("Add your first card", systemImage: "plus") { presenter.sheet = .newCard(folder) }
                 } else {
                     ForEach(cards) { card in
-                        Button { editingCard = card } label: { CardRow(card: card) }
+                        Button { presenter.sheet = .editCard(card) } label: { CardRow(card: card) }
                             .tint(.primary)
                     }
                     .onDelete { offsets in
@@ -58,7 +56,7 @@ struct FolderView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button("New Card", systemImage: "rectangle.stack.badge.plus") { isAddingCard = true }
+                    Button("New Card", systemImage: "rectangle.stack.badge.plus") { presenter.sheet = .newCard(folder) }
                     Button("New Subfolder", systemImage: "folder.badge.plus") { isAddingSubfolder = true }
                     Divider()
                     Button("Rename Folder", systemImage: "pencil") { isRenaming = true }
@@ -76,13 +74,6 @@ struct FolderView: View {
             folder.name = name
         }
         .deleteFolderConfirmation($folderToDelete)
-        .sheet(isPresented: $isAddingCard, onDismiss: reschedule) { CardEditorView(folder: folder) }
-        .sheet(item: $editingCard, onDismiss: reschedule) { CardEditorView(card: $0) }
-        .fullScreenCover(item: $session, onDismiss: reschedule) { StudySessionView(session: $0) }
-    }
-
-    private func reschedule() {
-        ReminderScheduler.shared.reschedule(context: context)
     }
 
     private func counts(_ cards: [Card], _ remainingNew: Int) -> StudyQueue.Counts {

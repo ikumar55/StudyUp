@@ -53,13 +53,7 @@ final class StudySession: Identifiable {
 
     func grade(_ rating: Rating, context: ModelContext, now: Date = .now) {
         guard let card = queue.first else { return }
-        let stateBefore = card.state
-        card.schedule = fsrs.review(card.schedule, rating: rating, now: now)
-
-        let log = ReviewLog(reviewedAt: now, rating: rating, stateBefore: stateBefore)
-        context.insert(log)
-        log.card = card
-
+        card.record(rating, fsrs: fsrs, context: context, now: now)
         queue.removeFirst()
         reviewedCount += 1
         if card.due <= now.addingTimeInterval(StudyQueue.learnAhead) {

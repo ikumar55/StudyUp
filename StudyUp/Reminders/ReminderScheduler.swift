@@ -14,6 +14,7 @@ final class ReminderScheduler {
     private(set) var nextReminderDate: Date?
 
     private let center = UNUserNotificationCenter.current()
+    private static let plannedIdentifierPrefix = "reminder-"
     private var pendingUpdate: Task<Void, Never>?
 
     var canSchedule: Bool {
@@ -39,7 +40,12 @@ final class ReminderScheduler {
         let update = Task {
             await previous?.value
             await refreshAuthorizationStatus()
-            center.removeAllPendingNotificationRequests()
+            // Only replace planned reminders; a test reminder must survive a replan.
+            let plannedIDs = await center.pendingNotificationRequests()
+                .map(\.identifier)
+                .filter { $0.hasPrefix(Self.plannedIdentifierPrefix) }
+            center.removePendingNotificationRequests(withIdentifiers: plannedIDs)
+            await removeStaleDeliveredReminders(context: context)
             guard canSchedule else {
                 nextReminderDate = nil
                 return
@@ -60,9 +66,10 @@ final class ReminderScheduler {
         let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
         guard let card = StudyQueue.build(from: cards, newLimit: .max).first ?? cards.first else { return false }
         try? context.save()
+        let fireDate = Date.now.addingTimeInterval(5)
         let request = UNNotificationRequest(
-            identifier: "test-reminder",
-            content: content(for: card, extraCards: 0),
+            identifier: "test-reminder-\(Int(fireDate.timeIntervalSince1970))",
+            content: content(for: card, extraCards: 0, at: fireDate, fsrs: currentFSRS()),
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
         )
         try? await center.add(request)
@@ -77,6 +84,7 @@ final class ReminderScheduler {
         let today = calendar.startOfDay(for: now)
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
         let newCardsPerDay = StudySettings.newCardsPerDay()
+        let fsrs = currentFSRS()
         let days = [
             (today, StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context, now: now)),
             (tomorrow, newCardsPerDay),
@@ -87,12 +95,13 @@ final class ReminderScheduler {
             let ordered = StudyQueue.reminderCandidates(from: cards, dayStart: dayStart, newLimit: newLimit, calendar: calendar)
             let candidates = ordered.indices.map { ReminderPlanner.Candidate(id: $0, availableAt: ordered[$0].availableAt) }
             let reminders = ReminderPlanner.planDay(candidates: candidates, dayStart: dayStart, now: now, settings: settings)
-            for (index, reminder) in reminders.enumerated() {
+            for reminder in reminders {
                 let card = ordered[reminder.cardIDs[0]].card
                 let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: reminder.fireDate)
+                // Unique per fire time, so a new plan never replaces a reminder already showing.
                 let request = UNNotificationRequest(
-                    identifier: "reminder-\(Int(dayStart.timeIntervalSince1970))-\(index)",
-                    content: content(for: card, extraCards: reminder.cardIDs.count - 1),
+                    identifier: "\(Self.plannedIdentifierPrefix)\(Int(reminder.fireDate.timeIntervalSince1970))",
+                    content: content(for: card, extraCards: reminder.cardIDs.count - 1, at: reminder.fireDate, fsrs: fsrs),
                     trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
                 )
                 planned.append((request, reminder.fireDate))
@@ -101,7 +110,7 @@ final class ReminderScheduler {
         return planned
     }
 
-    private func content(for card: Card, extraCards: Int) -> UNNotificationContent {
+    private func content(for card: Card, extraCards: Int, at fireDate: Date, fsrs: FSRS) -> UNNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = card.folder?.path ?? "StudyUp"
         content.body = PlainText.from(markdown: card.front)
@@ -110,7 +119,29 @@ final class ReminderScheduler {
         }
         content.sound = .default
         content.threadIdentifier = "study"
-        content.userInfo = ReminderPayload.userInfo(cardID: card.persistentModelID)
+        content.categoryIdentifier = ReminderPayload.categoryIdentifier
+        // Intervals as of the fire time; any change to the card triggers a replan anyway.
+        let previews = fsrs.preview(card.schedule, now: fireDate)
+        let intervals = GradeAction.ratings.map { rating, _ in
+            previews[rating].map { IntervalText.short($0.due.timeIntervalSince(fireDate)) } ?? ""
+        }
+        content.userInfo = ReminderPayload.userInfo(for: card, path: content.title, intervals: intervals)
         return content
+    }
+
+    private func currentFSRS() -> FSRS {
+        StudySettings.fsrs(desiredRetention: StudySettings.desiredRetention())
+    }
+
+    /// Clears reminders still in Notification Center whose card was deleted or reviewed since.
+    private func removeStaleDeliveredReminders(context: ModelContext) async {
+        let delivered = await center.deliveredNotifications()
+        let stale = delivered.compactMap { notification -> String? in
+            guard let target = ReminderPayload.target(from: notification.request.content.userInfo) else { return nil }
+            let cardID = target.cardID
+            let card = try? context.fetch(FetchDescriptor<Card>(predicate: #Predicate { $0.persistentModelID == cardID })).first
+            return card?.reps == target.reps ? nil : notification.request.identifier
+        }
+        center.removeDeliveredNotifications(withIdentifiers: stale)
     }
 }

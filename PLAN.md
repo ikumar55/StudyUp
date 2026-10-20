@@ -63,11 +63,12 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [x] Each notification shows a real question; tapping it opens a short session starting with that card
 - [x] Reschedule whenever the app opens, goes to the background, finishes a session, or changes settings
 - [x] "Keep going" after a short session; "Next reminder at …" on the home screen; a test-reminder button
-- Known gap: tapping a reminder while a sheet is open inside a folder (the card editor, or a folder's study session) doesn't open the review. Settings is handled. Fix: present all sessions from one place.
+- [x] All sheets and sessions are presented from one place (`Presenter`), so a reminder tap always opens its review
 
 **2b: Answer from the notification**
-- [ ] Notification Content Extension: long-press a reminder to reveal the answer
-- [ ] Wrong/Right/Easy action buttons, handled in the background without opening the app
+- [x] Wrong/Right/Easy action buttons, handled in the background without opening the app
+- [x] Stale reminders (card reviewed or deleted since) are cleared from Notification Center; stale grades are ignored
+- [ ] Notification Content Extension: long-press a reminder to reveal the answer (and show the intervals on the buttons)
 - [ ] Background refresh (BGAppRefreshTask), so reminders stay current even if the app isn't opened
 
 ### Phase 3: Quality of life
@@ -108,9 +109,9 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 xcodebuild test -project StudyUp.xcodeproj -scheme StudyUp \
   -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:StudyUpTests
 
-# Everything, including the UI smoke test
+# Everything, including the UI tests (serial, since parallel clones start without notification permission)
 xcodebuild test -project StudyUp.xcodeproj -scheme StudyUp \
-  -destination 'platform=iOS Simulator,name=iPhone 17'
+  -destination 'platform=iOS Simulator,name=iPhone 17' -parallel-testing-enabled NO
 ```
 
 To run on the iPhone: open `StudyUp.xcodeproj`, pick the iPhone as the run destination, and press ⌘R. Repeat at least every 7 days, because of free provisioning.

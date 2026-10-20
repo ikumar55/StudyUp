@@ -71,6 +71,47 @@ final class StudyUpUITests: XCTestCase {
         attachScreenshot("9-quick-review", app)
     }
 
+    @MainActor
+    func testGradingFromReminderRecordsReview() throws {
+        let app = XCUIApplication()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+        app.buttons["Add Sample Cards"].tap()
+        allowNotificationsIfAsked(app, springboard)
+
+        let studyNow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Study now'")).firstMatch
+        XCTAssertTrue(studyNow.waitForExistence(timeout: 5))
+        XCTAssertFalse(studyNow.label.contains("due"))
+
+        app.buttons["Settings"].tap()
+        app.buttons["Send a Test Reminder"].tap()
+        app.buttons["Done"].tap()
+
+        let banner = springboard.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS[c] 'process and a thread'")).firstMatch
+        XCTAssertTrue(banner.waitForExistence(timeout: 15))
+        banner.press(forDuration: 1.0)
+        let right = springboard.buttons["Right"]
+        XCTAssertTrue(right.waitForExistence(timeout: 5))
+        attachScreenshot("10-expanded-reminder", springboard)
+        right.tap()
+
+        // The card moved into learning (due again in 10 minutes), so it now counts as due.
+        let updated = NSPredicate(format: "label CONTAINS '1 due'")
+        expectation(for: updated, evaluatedWith: studyNow)
+        waitForExpectations(timeout: 10)
+    }
+
+    private func allowNotificationsIfAsked(_ app: XCUIApplication, _ springboard: XCUIApplication) {
+        let turnOn = app.buttons["Turn On Study Reminders"]
+        if turnOn.waitForExistence(timeout: 3) {
+            turnOn.tap()
+            let allow = springboard.alerts.buttons["Allow"]
+            if allow.waitForExistence(timeout: 5) { allow.tap() }
+        }
+    }
+
     private func attachScreenshot(_ name: String, _ app: XCUIApplication) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

@@ -85,6 +85,17 @@ final class Card {
     }
 }
 
+extension Card {
+    /// Applies a grade: advances the schedule and logs the review.
+    func record(_ rating: Rating, fsrs: FSRS, context: ModelContext, now: Date) {
+        let stateBefore = state
+        schedule = fsrs.review(schedule, rating: rating, now: now)
+        let log = ReviewLog(reviewedAt: now, rating: rating, stateBefore: stateBefore)
+        context.insert(log)
+        log.card = self
+    }
+}
+
 @Model
 final class ReviewLog {
     var reviewedAt: Date

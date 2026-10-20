@@ -9,11 +9,8 @@ struct HomeView: View {
     @AppStorage(StudySettings.desiredRetentionKey) private var desiredRetention = StudySettings.defaultDesiredRetention
     @AppStorage(StudySettings.remindersEnabledKey) private var remindersEnabled = StudySettings.defaultRemindersEnabled
 
-    @State private var session: StudySession?
-    /// A reminder's session waiting for Settings to close, since only one modal can show at a time.
-    @State private var queuedSession: StudySession?
+    @State private var presenter = Presenter()
     @State private var isAddingTopic = false
-    @State private var isShowingSettings = false
     @State private var topicToDelete: Folder?
 
     private let scheduler = ReminderScheduler.shared
@@ -26,7 +23,7 @@ struct HomeView: View {
                 if !allCards.isEmpty {
                     Section {
                         StudyButtonRow(counts: counts(allCards, remainingNew)) {
-                            session = .make(
+                            presenter.session = .make(
                                 title: "All Topics", scope: .all, context: context,
                                 newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
                             )
@@ -69,7 +66,7 @@ struct HomeView: View {
             .navigationDestination(for: Folder.self) { FolderView(folder: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Settings", systemImage: "gearshape") { isShowingSettings = true }
+                    Button("Settings", systemImage: "gearshape") { presenter.sheet = .settings }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button("New Topic", systemImage: "folder.badge.plus") { isAddingTopic = true }
@@ -79,10 +76,19 @@ struct HomeView: View {
                 context.insert(Folder(name: name))
             }
             .deleteFolderConfirmation($topicToDelete)
-            .sheet(isPresented: $isShowingSettings, onDismiss: settingsDismissed) { SettingsView() }
-            .fullScreenCover(item: $session, onDismiss: reschedule) { StudySessionView(session: $0) }
-            .task(id: router.pendingCardID) { openPendingReminder() }
         }
+        .environment(presenter)
+        .sheet(item: $presenter.sheet, onDismiss: sheetDismissed) { sheet in
+            switch sheet {
+            case .settings: SettingsView()
+            case .newCard(let folder): CardEditorView(folder: folder)
+            case .editCard(let card): CardEditorView(card: card)
+            }
+        }
+        .fullScreenCover(item: $presenter.session, onDismiss: reschedule) { StudySessionView(session: $0) }
+        .task(id: router.pendingCardID) { openPendingReminder() }
+        // Adding sample cards or deleting a folder changes what's due without closing a sheet.
+        .onChange(of: allCards.count) { reschedule() }
     }
 
     private var emptyState: some View {
@@ -105,30 +111,21 @@ struct HomeView: View {
         scheduler.reschedule(context: context)
     }
 
+    private func sheetDismissed() {
+        reschedule()
+        presenter.sheetDismissed()
+    }
+
     /// Opens a short session starting with the card from a tapped reminder.
     private func openPendingReminder() {
         guard let cardID = router.pendingCardID else { return }
         router.pendingCardID = nil
         let card = try? context.fetch(FetchDescriptor<Card>(predicate: #Predicate { $0.persistentModelID == cardID })).first
-        let reminderSession = StudySession.make(
+        presenter.present(.make(
             title: "Quick Review", scope: .all, context: context,
             newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention,
             startingWith: card, limit: ReminderSettings.load().cardsPerReminder
-        )
-        if isShowingSettings {
-            queuedSession = reminderSession
-            isShowingSettings = false
-        } else {
-            session = reminderSession
-        }
-    }
-
-    private func settingsDismissed() {
-        reschedule()
-        if let queuedSession {
-            session = queuedSession
-            self.queuedSession = nil
-        }
+        ))
     }
 
     /// "today at 2:15 PM" / "tomorrow at 9:45 AM"
