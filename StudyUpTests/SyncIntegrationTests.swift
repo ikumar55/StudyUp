@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+import UIKit
 @testable import StudyUp
 
 /// Syncs against a real StudyUp server. Runs only when the server's address is given, e.g.
@@ -14,13 +15,14 @@ struct SyncIntegrationTests {
     let container: ModelContainer
     let context: ModelContext
     let engine: SyncEngine
+    let images = ImageStore(directory: FileManager.default.temporaryDirectory.appending(path: "SyncIntegrationImages-\(UUID())"))
 
     init() throws {
         container = try Persistence.makeContainer(inMemory: true)
         context = container.mainContext
         let defaults = UserDefaults(suiteName: "SyncIntegrationTests")!
         defaults.removePersistentDomain(forName: "SyncIntegrationTests")
-        engine = SyncEngine(defaults: defaults, keychain: KeychainItem(account: "integration-test"))
+        engine = SyncEngine(defaults: defaults, keychain: KeychainItem(account: "integration-test"), images: images)
     }
 
     private func api(_ method: String, _ path: String, _ body: [String: Any]? = nil) async throws -> Any? {
@@ -72,6 +74,42 @@ struct SyncIntegrationTests {
         let after = try #require(try await api("GET", "api/library") as? [String: Any])
         let remaining = (after["folders"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
         #expect(!remaining.contains(macFolderID))
+    }
+
+    @Test func imagesFlowBothWays() async throws {
+        defer { engine.unpair() }
+        let folder = Folder(name: "Images \(UUID().uuidString.prefix(6))")
+        context.insert(folder)
+
+        // An image added on the phone reaches the Mac.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let photo = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 200), format: format).pngData { context in
+            UIColor.systemOrange.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 300, height: 200))
+        }
+        let phoneImage = try images.add(photo)
+        let card = Card(front: "Phone question", back: ImageStore.snippet(for: phoneImage))
+        context.insert(card)
+        card.folder = folder
+        try await pairAndSync()
+
+        let uploaded = try await URLSession.shared.data(from: server.appending(path: "api/images/\(phoneImage.uuidString.lowercased())"))
+        #expect((uploaded.1 as? HTTPURLResponse)?.statusCode == 200)
+        #expect(UIImage(data: uploaded.0)?.size == CGSize(width: 300, height: 200))
+
+        // An image pasted in the web app reaches the phone.
+        var upload = URLRequest(url: server.appending(path: "api/images"))
+        upload.httpMethod = "POST"
+        upload.httpBody = photo
+        let (body, _) = try await URLSession.shared.data(for: upload)
+        let macImage = try #require((try JSONSerialization.jsonObject(with: body) as? [String: Any])?["id"] as? String)
+        _ = try await api("POST", "api/cards", [
+            "folderId": folder.syncID!.uuidString.lowercased(), "front": "Mac question", "back": "![](image:\(macImage))",
+        ])
+        await engine.sync(context: context)
+        #expect(engine.status == .idle, "\(engine.status)")
+        #expect(images.data(for: try #require(UUID(uuidString: macImage)))?.data == photo)
     }
 
     @Test func wrongCodeIsRejected() async throws {

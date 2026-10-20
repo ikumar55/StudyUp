@@ -1,4 +1,5 @@
 import SwiftData
+import UIKit
 
 /// A few starter cards so a fresh install has something to try.
 enum SampleData {
@@ -48,3 +49,32 @@ enum SampleData {
         }
     }
 }
+
+#if DEBUG
+extension SampleData {
+    /// UI tests launch with -richCardSample to get a card with a code block and an image, since the
+    /// Photos picker can't be driven from a test.
+    static func insertRichCard(into context: ModelContext) {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 1200, height: 600), format: format).pngData { _ in
+            UIColor.white.setFill()
+            UIRectFill(CGRect(x: 0, y: 0, width: 1200, height: 600))
+            UIColor.systemBlue.setFill()
+            UIRectFill(CGRect(x: 60, y: 60, width: 420, height: 220))
+            ("CR3 → PML4 → PDPT → PD → PT" as NSString).draw(
+                at: CGPoint(x: 60, y: 380), withAttributes: [.font: UIFont.systemFont(ofSize: 64, weight: .semibold)]
+            )
+        }
+        guard let imageID = try? ImageStore.shared.add(png) else { return }
+        let folder = Folder(name: "Rich Content")
+        context.insert(folder)
+        let card = Card(
+            front: "How does x86-64 translate an address?\n```c\nuint64_t cr3 = read_cr3();\n```",
+            back: "Four levels of tables:\n\(ImageStore.snippet(for: imageID))\nEach level uses **9 bits** of the address."
+        )
+        context.insert(card)
+        card.folder = folder
+    }
+}
+#endif

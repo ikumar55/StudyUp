@@ -103,6 +103,7 @@ export function plainText(markdown: string): string {
   return markdown
     .replace(/```[^\n]*\n?/g, '')
     .replace(/`([^`]*)`/g, '$1')
+    .replace(/!\[[^\]]*\]\(image:[^)]*\)/g, '🖼')
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
     .replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|$|[.,;:!?])/g, '$1$2')

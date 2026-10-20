@@ -76,7 +76,7 @@ struct CardRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            MarkdownText(card.front)
+            MarkdownText(ImageStore.replacingReferences(in: card.front))
                 .lineLimit(2)
                 .foregroundStyle(.primary)
             Text(status)

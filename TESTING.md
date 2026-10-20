@@ -64,6 +64,22 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | Delete and reinstall the app, pair again: all cards **and their progress** come back | |
 | [ ] | Another computer on the Wi-Fi can't open the editor (try http://<mac-name>.local:8787 from another device: expect "only available on the Mac running it") | |
 
+## Phase 3.5: Images and code
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Web: take a screenshot (⌘⇧⌃4 copies it), click into Answer, ⌘V: the image appears in the card after adding | |
+| [ ] | Web: drag an image file onto a field; "Image…" picks a file | |
+| [ ] | Web: click an image in a card to see it full size; Esc closes | |
+| [ ] | The image reaches the phone after a sync, and shows in the study view | |
+| [ ] | iPhone: Edit Card → Add Image picks from Photos; the thumbnail shows, and × removes it | |
+| [ ] | An image added on the phone shows in the web app after a sync | |
+| [ ] | iPhone: tap an image while studying: full screen; pinch and double-tap zoom work | |
+| [ ] | A card whose answer is only an image can be saved | |
+| [ ] | Reminder for a card with a question image: thumbnail in the banner; answer images only on long-press | |
+| [ ] | A card with a ```code block``` shows a monospaced box on the phone, not backticks | |
+| [ ] | Editing a card on the phone that has an image in the middle of its text (written on the Mac) doesn't move the image unless that field is changed | |
+
 ## Feel and feedback
 
 Real use is what settles these defaults (currently up to 8 reminders a day, 3 cards each, 9 AM – 9 PM, 10 new cards a day).

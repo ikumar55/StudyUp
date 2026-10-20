@@ -98,9 +98,17 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [x] Search across all cards (⌘K); move cards between folders
 - [x] Download a backup (JSON); iPhone pairing panel; live updates when the phone syncs (polls every 3 s)
 
-### Phase 3.5: Quality of life
-- [ ] Rich content: code blocks, LaTeX for ML math, images (in both the app and the web UI)
-- [ ] Cloze cards ("A page fault occurs when ___")
+### Phase 3.5: Rich content
+- [x] **Images** (2026-10-20). Cards refer to images as `![](image:<id>)`, the same in the app and on the web. Files are stored next to each database and synced separately: the phone uploads what the Mac lacks, then downloads what it lacks.
+  - Web: paste (⌘V), drop, or "Image…"; large images are scaled to 2000 px and stored as WebP; click to zoom
+  - iPhone: "Add Image" from Photos in the card editor (scaled to 2000 px, JPEG); tap to zoom full screen, pinch or double-tap to zoom in
+  - Notifications: 📷 in the banner text; question images appear as the banner thumbnail; answer images are hidden until long-press
+- [x] **Code blocks** on the iPhone (the web already had them): a monospaced box that scrolls sideways
+- [ ] LaTeX for ML math (KaTeX on the web; the iPhone needs a renderer)
+- [ ] Syntax colors in code blocks
+- [ ] Cloze cards: "A {{page fault}} occurs when…" makes one card per blank
+- [ ] Clean up image files that no card refers to anymore
+- [ ] Include images in the backup download (currently the JSON has the cards only)
 - [ ] Search and move cards on the phone too
 - [ ] Stats: reviews per day, retention per folder, streak
 - [ ] Include or exclude folders from reminders; pause a folder

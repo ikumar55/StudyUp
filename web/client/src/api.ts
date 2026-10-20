@@ -71,6 +71,19 @@ export const api = {
     request<CardRecord>('PATCH', `/api/cards/${id(cardId)}`, changes),
   deleteCard: (cardId: string) => request<void>('DELETE', `/api/cards/${id(cardId)}`),
 
+  /** Uploads an image file; card text then refers to it as `![](image:<id>)`. */
+  uploadImage: async (image: Blob): Promise<{ id: string }> => {
+    let response: Response
+    try {
+      response = await fetch('/api/images', { method: 'POST', headers: { 'Content-Type': image.type }, body: image })
+    } catch {
+      throw new ApiError('Can’t reach the StudyUp server. Is it still running?', 0)
+    }
+    const data: unknown = await response.json().catch(() => null)
+    if (!response.ok) throw new ApiError(isErrorBody(data) ? data.error : 'The image couldn’t be saved.', response.status)
+    return data as { id: string }
+  },
+
   createPairingCode: () => request<PairingCode>('POST', '/api/pairing-code'),
   forgetDevices: () => request<void>('DELETE', '/api/devices'),
 

@@ -3,8 +3,9 @@ import type { ClipboardEvent, KeyboardEvent, RefObject } from 'react'
 import { parseBulk } from '../bulkParse.ts'
 import { hasModifier, modKey } from '../format.ts'
 import { loadValue, saveValue } from '../storage.ts'
+import { useImageInsertion } from '../useImageInsertion.ts'
 import { AutoTextarea } from './AutoTextarea.tsx'
-import { CheckIcon, ImportIcon } from './Icons.tsx'
+import { CheckIcon, ImageIcon, ImportIcon } from './Icons.tsx'
 import { Markdown } from './Markdown.tsx'
 
 interface Draft {
@@ -35,6 +36,11 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
   const answerRef = useRef<HTMLTextAreaElement>(null)
   const draftRef = useRef(draft)
   draftRef.current = draft
+  // Screenshots usually illustrate the answer, so the Image button targets it unless Question was used last.
+  const [lastField, setLastField] = useState<keyof Draft>('back')
+  const frontImages = useImageInsertion(questionRef, (edit) => setDraft((d) => ({ ...d, front: edit(d.front) })))
+  const backImages = useImageInsertion(answerRef, (edit) => setDraft((d) => ({ ...d, back: edit(d.back) })))
+  const uploading = frontImages.uploading || backImages.uploading
 
   useEffect(() => saveValue('draft', draft.front || draft.back ? draft : undefined), [draft])
   useEffect(() => saveValue('preview', preview), [preview])
@@ -63,6 +69,10 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
     if (!back) {
       // ⌘↩ in Question with no answer yet just moves on to Answer.
       answerRef.current?.focus()
+      return
+    }
+    if (uploading) {
+      setHint('Wait for the image to finish uploading.')
       return
     }
     // Clear right away so the next card can be typed while this one saves.
@@ -117,7 +127,10 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
           value={draft.front}
           onChange={update('front')}
           onKeyDown={onKeyDown}
-          onPaste={onPaste}
+          onFocus={() => setLastField('front')}
+          onPaste={(event) => frontImages.onPaste(event) || onPaste(event)}
+          onDragOver={frontImages.onDragOver}
+          onDrop={frontImages.onDrop}
         />
       </div>
       <div className="field">
@@ -131,7 +144,10 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
           value={draft.back}
           onChange={update('back')}
           onKeyDown={onKeyDown}
-          onPaste={onPaste}
+          onFocus={() => setLastField('back')}
+          onPaste={(event) => backImages.onPaste(event) || onPaste(event)}
+          onDragOver={backImages.onDragOver}
+          onDrop={backImages.onDrop}
         />
       </div>
 
@@ -168,13 +184,15 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
         <div className="quick-status" aria-live="polite">
           {hint ? (
             <span className="quick-hint-warning">{hint}</span>
+          ) : uploading ? (
+            <span className="quick-hint">Uploading image…</span>
           ) : added ? (
             <span key={added.count} className="quick-added">
               <CheckIcon /> {added.count > 1 ? `${added.count} cards added` : 'Card added'} to {added.folder}
             </span>
           ) : (
             <span className="quick-hint">
-              <kbd>{modKey}↩</kbd> add card · <kbd>Tab</kbd> next field · Markdown supported
+              <kbd>{modKey}↩</kbd> add card · <kbd>Tab</kbd> next field · paste screenshots with <kbd>{modKey}V</kbd>
             </span>
           )}
         </div>
@@ -182,6 +200,14 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
           <input type="checkbox" checked={preview} onChange={(event) => setPreview(event.target.checked)} />
           Preview
         </label>
+        <button
+          type="button"
+          className="button button-quiet"
+          title={`Add an image to the ${lastField === 'front' ? 'question' : 'answer'}`}
+          onClick={() => (lastField === 'front' ? frontImages : backImages).pick()}
+        >
+          <ImageIcon /> Image…
+        </button>
         <button type="button" className="button button-quiet" onClick={() => onBulkAdd()}>
           <ImportIcon /> Bulk add…
         </button>

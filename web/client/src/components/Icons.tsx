@@ -55,6 +55,9 @@ export const CloseIcon = (p: P) => <Icon {...p}><path d="M4 4l8 8M12 4l-8 8" /><
 export const ImportIcon = (p: P) => (
   <Icon {...p}><rect x="3" y="2.5" width="10" height="11" rx="1.5" /><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" /></Icon>
 )
+export const ImageIcon = (p: P) => (
+  <Icon {...p}><rect x="2.5" y="3" width="11" height="10" rx="1.5" /><circle cx="6" cy="6.5" r="1" /><path d="M3 12l3.5-3.5 2.5 2.5 2-2 2.5 2.5" /></Icon>
+)
 export const KeyboardIcon = (p: P) => (
   <Icon {...p}><rect x="1.75" y="4" width="12.5" height="8" rx="1.5" /><path d="M4.5 6.75h.01M7 6.75h.01M9.5 6.75h.01M12 6.75h.01M5 9.5h6" /></Icon>
 )

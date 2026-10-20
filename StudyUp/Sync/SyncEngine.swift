@@ -27,6 +27,7 @@ final class SyncEngine {
     private let defaults: UserDefaults
     private let session: URLSession
     private let keychain: KeychainItem
+    private let images: ImageStore
 
     private enum Key {
         static let server = "sync.server"
@@ -35,10 +36,14 @@ final class SyncEngine {
         static let lastSyncedAt = "sync.lastSyncedAt"
     }
 
-    init(defaults: UserDefaults = .standard, session: URLSession = .shared, keychain: KeychainItem = KeychainItem(account: "token")) {
+    init(
+        defaults: UserDefaults = .standard, session: URLSession = .shared,
+        keychain: KeychainItem = KeychainItem(account: "token"), images: ImageStore = .shared
+    ) {
         self.defaults = defaults
         self.session = session
         self.keychain = keychain
+        self.images = images
         server = defaults.data(forKey: Key.server).flatMap { try? JSONDecoder().decode(PairedServer.self, from: $0) }
         lastSyncedAt = defaults.object(forKey: Key.lastSyncedAt) as? Date
     }
@@ -88,13 +93,49 @@ final class SyncEngine {
             defaults.set(response.cursor, forKey: Key.cursor)
             // Edits made while this sync was in flight are newer than `now`, so the next sync sends them.
             defaults.set(now, forKey: Key.lastPushStartedAt)
+            if changed { ReminderScheduler.shared.reschedule(context: context) }
+            try await syncImages(server: server, token: token, context: context)
             lastSyncedAt = .now
             defaults.set(lastSyncedAt, forKey: Key.lastSyncedAt)
             status = .idle
-            if changed { ReminderScheduler.shared.reschedule(context: context) }
         } catch {
             status = .failed(Self.describe(error))
         }
+    }
+
+    /// Images never change, so this only fills gaps: uploads the images the Mac is missing, then
+    /// downloads the images cards refer to that this iPhone is missing.
+    private func syncImages(server: PairedServer, token: String, context: ModelContext) async throws {
+        struct MissingRequest: Encodable { let ids: [UUID] }
+        struct MissingResponse: Decodable { let missing: [UUID] }
+
+        let stored = images.storedIDs()
+        if !stored.isEmpty {
+            let response: MissingResponse = try await post(
+                server.baseURL.appending(path: "images/missing"), body: MissingRequest(ids: stored), token: token
+            )
+            for id in response.missing {
+                guard let file = images.data(for: id) else { continue }
+                var request = imageRequest(server: server, id: id, token: token)
+                request.httpMethod = "PUT"
+                request.setValue(file.mime, forHTTPHeaderField: "Content-Type")
+                request.httpBody = file.data
+                _ = try await perform(request, token: token)
+            }
+        }
+
+        let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
+        let referenced = Set(cards.flatMap { ImageStore.references(in: $0.front) + ImageStore.references(in: $0.back) })
+        for id in referenced where !images.contains(id) {
+            let data = try await perform(imageRequest(server: server, id: id, token: token), token: token)
+            try images.save(data, id: id)
+        }
+    }
+
+    private func imageRequest(server: PairedServer, id: UUID, token: String) -> URLRequest {
+        var request = URLRequest(url: server.baseURL.appending(path: "images/\(id.uuidString.lowercased())"), timeoutInterval: 60)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return request
     }
 
     // MARK: - HTTP
@@ -110,14 +151,19 @@ final class SyncEngine {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         request.httpBody = try SyncCoding.encoder.encode(body)
+        return try SyncCoding.decoder.decode(Response.self, from: try await perform(request, token: token))
+    }
 
+    /// Sends a request and returns the body of a successful response. A 401 means the Mac forgot
+    /// this iPhone (e.g. "Unpair all"), so the pairing is cleared.
+    private func perform(_ request: URLRequest, token: String?) async throws -> Data {
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(statusCode) else {
             if statusCode == 401, token != nil { unpair() }
             throw (try? JSONDecoder().decode(ServerError.self, from: data)) ?? URLError(.badServerResponse)
         }
-        return try SyncCoding.decoder.decode(Response.self, from: data)
+        return data
     }
 
     private static func describe(_ error: Error) -> String {

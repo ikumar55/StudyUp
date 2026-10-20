@@ -55,8 +55,14 @@ cat > "$PLIST" <<PLIST
 </plist>
 PLIST
 
-# Restart the service so it runs the new copy.
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+# Restart the service so it runs the new copy. Stopping finishes in the background, and starting
+# again before it has fails with "Bootstrap failed: 5", so wait for the old copy to be gone.
+SERVICE="gui/$(id -u)/$LABEL"
+launchctl bootout "$SERVICE" 2>/dev/null || true
+for _ in {1..40}; do
+  launchctl print "$SERVICE" >/dev/null 2>&1 || break
+  sleep 0.25
+done
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 
 for _ in {1..20}; do

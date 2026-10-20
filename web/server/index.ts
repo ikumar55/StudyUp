@@ -5,13 +5,14 @@ import { existsSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApp } from './app.ts'
-import { defaultDatabasePath, openDatabase } from './db.ts'
+import { defaultDatabasePath, defaultImagesDirectory, openDatabase } from './db.ts'
+import { ImageStore } from './images.ts'
 import { Store } from './store.ts'
 
 const port = Number(process.env.PORT ?? 8787)
 const computerName = macSetting('ComputerName') ?? 'Mac'
 const store = new Store(openDatabase(), computerName)
-const app = createApp(store)
+const app = createApp(store, new ImageStore(defaultImagesDirectory()))
 
 // The built web UI (npm run build). During development Vite serves it instead.
 const clientDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'client', 'dist')

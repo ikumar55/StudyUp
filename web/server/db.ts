@@ -3,6 +3,11 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
+/** Images live next to the database, e.g. ~/Library/Application Support/StudyUp/images. */
+export function defaultImagesDirectory(): string {
+  return join(dirname(defaultDatabasePath()), 'images')
+}
+
 export function defaultDatabasePath(): string {
   return process.env.STUDYUP_DB ?? join(homedir(), 'Library', 'Application Support', 'StudyUp', 'studyup.db')
 }

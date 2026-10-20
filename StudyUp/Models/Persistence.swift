@@ -11,6 +11,11 @@ enum Persistence {
         do {
             let container = try makeContainer(inMemory: inMemory)
             backfillSyncMetadata(container.mainContext)
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-richCardSample") {
+                SampleData.insertRichCard(into: container.mainContext)
+            }
+            #endif
             return container
         } catch {
             fatalError("Couldn't open the card database: \(error)")

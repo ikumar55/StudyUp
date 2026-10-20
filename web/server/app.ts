@@ -1,7 +1,9 @@
 import { getConnInfo } from '@hono/node-server/conninfo'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
+import { randomUUID } from 'node:crypto'
 import type { PairResponse } from '../shared/protocol.ts'
+import { ImageStore, MAX_IMAGE_BYTES } from './images.ts'
 import { parseSyncRequest } from './validate.ts'
 import { InvalidRequestError, NotFoundError, Store } from './store.ts'
 
@@ -11,9 +13,15 @@ export interface AppOptions {
   isLocalRequest?: (c: Context) => boolean
 }
 
-export function createApp(store: Store, options: AppOptions = {}): Hono {
+export function createApp(store: Store, images: ImageStore, options: AppOptions = {}): Hono {
   const isLocal = options.isLocalRequest ?? isLoopback
   const app = new Hono()
+  const isPairedDevice = (c: Context) => {
+    const token = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
+    return token !== '' && store.authenticate(token)
+  }
+  const notPaired = (c: Context) =>
+    c.json({ error: 'This iPhone isn’t paired with this Mac. Pair again from the app.' }, 401)
 
   app.onError((error, c) => {
     if (error instanceof InvalidRequestError) return c.json({ error: error.message }, 400)
@@ -34,11 +42,28 @@ export function createApp(store: Store, options: AppOptions = {}): Hono {
   })
 
   app.post('/sync', async (c) => {
-    const token = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
-    if (!token || !store.authenticate(token)) {
-      return c.json({ error: 'This iPhone isn’t paired with this Mac. Pair again from the app.' }, 401)
-    }
+    if (!isPairedDevice(c)) return notPaired(c)
     return c.json(store.sync(parseSyncRequest(await readJSON(c))))
+  })
+
+  // Image files sync separately from cards: the phone asks which of its images the Mac lacks,
+  // uploads those, and downloads any referenced image it doesn't have.
+  app.post('/images/missing', async (c) => {
+    if (!isPairedDevice(c)) return notPaired(c)
+    const body = await readJSON(c)
+    const ids = Array.isArray(body.ids) ? body.ids.map(String) : []
+    return c.json({ missing: images.missing(ids) })
+  })
+
+  app.put('/images/:id', async (c) => {
+    if (!isPairedDevice(c)) return notPaired(c)
+    images.save(c.req.param('id'), await readImage(c))
+    return c.body(null, 204)
+  })
+
+  app.get('/images/:id', (c) => {
+    if (!isPairedDevice(c)) return notPaired(c)
+    return serveImage(c, images, c.req.param('id'))
   })
 
   // MARK: This Mac only
@@ -56,6 +81,14 @@ export function createApp(store: Store, options: AppOptions = {}): Hono {
     c.header('Content-Disposition', `attachment; filename="studyup-backup-${date}.json"`)
     return c.json(store.backup())
   })
+
+  app.post('/api/images', async (c) => {
+    const id = randomUUID()
+    images.save(id, await readImage(c))
+    return c.json({ id }, 201)
+  })
+
+  app.get('/api/images/:id', (c) => serveImage(c, images, c.req.param('id')))
 
   app.post('/api/pairing-code', (c) => c.json(store.createPairingCode()))
   app.delete('/api/devices', (c) => {
@@ -114,6 +147,21 @@ async function readJSON(c: Context): Promise<Record<string, any>> {
     // Fall through to the error below.
   }
   throw new InvalidRequestError('Expected a JSON body.')
+}
+
+async function readImage(c: Context): Promise<Uint8Array> {
+  const length = Number(c.req.header('Content-Length') ?? 0)
+  if (length > MAX_IMAGE_BYTES) throw new InvalidRequestError('Images must be smaller than 15 MB.')
+  return new Uint8Array(await c.req.arrayBuffer())
+}
+
+function serveImage(c: Context, images: ImageStore, id: string): Response {
+  const image = images.read(id)
+  if (!image) return c.json({ error: 'That image isn’t on this Mac.' }, 404)
+  // An id always names the same image, so it can be cached forever.
+  c.header('Cache-Control', 'private, max-age=31536000, immutable')
+  c.header('Content-Type', image.mime)
+  return c.body(new Uint8Array(image.bytes))
 }
 
 function optionalID(value: unknown): string | null {

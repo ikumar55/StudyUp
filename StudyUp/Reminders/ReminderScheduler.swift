@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import UIKit
 import UserNotifications
 
 /// Keeps the pending study-reminder notifications in sync with what's due.
@@ -119,7 +120,7 @@ final class ReminderScheduler {
     private func content(for card: Card, extraCards: Int, at fireDate: Date, fsrs: FSRS) -> UNNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = card.folder?.path ?? "StudyUp"
-        content.body = PlainText.from(markdown: card.front)
+        content.body = PlainText.from(markdown: ImageStore.replacingReferences(in: card.front))
         if extraCards > 0 {
             content.subtitle = "+ \(extraCards) more \(extraCards == 1 ? "card" : "cards")"
         }
@@ -132,7 +133,44 @@ final class ReminderScheduler {
             previews[rating].map { IntervalText.short($0.due.timeIntervalSince(fireDate)) } ?? ""
         }
         content.userInfo = ReminderPayload.userInfo(for: card, path: content.title, intervals: intervals)
+        content.attachments = attachments(for: card)
         return content
+    }
+
+    /// The card's first few images, for the banner and the long-press view. Question images show as
+    /// the banner's thumbnail; answer images stay hidden until the reminder is expanded.
+    private func attachments(for card: Card) -> [UNNotificationAttachment] {
+        let question = ImageStore.references(in: card.front).map { (id: $0, isAnswer: false) }
+        let answer = ImageStore.references(in: card.back).map { (id: $0, isAnswer: true) }
+        return (question + answer).prefix(3).compactMap { image in
+            // iOS moves attachment files into its own store, so each reminder gets its own copy.
+            guard let source = notificationImage(for: image.id) else { return nil }
+            let copy = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).jpg")
+            guard (try? FileManager.default.copyItem(at: source, to: copy)) != nil else { return nil }
+            return try? UNNotificationAttachment(
+                identifier: "\(image.isAnswer ? "answer" : "question")-\(image.id.uuidString)",
+                url: copy,
+                options: [UNNotificationAttachmentOptionsThumbnailHiddenKey: image.isAnswer]
+            )
+        }
+    }
+
+    /// A JPEG version of an image sized for notifications, made once and cached, since reminders
+    /// are replanned often and notifications don't accept WebP.
+    private func notificationImage(for id: UUID) -> URL? {
+        let cache = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appending(path: "NotificationImages", directoryHint: .isDirectory)
+        let cached = cache.appending(path: "\(id.uuidString.lowercased()).jpg")
+        if FileManager.default.fileExists(atPath: cached.path) { return cached }
+        guard let url = ImageStore.shared.url(for: id), let image = UIImage(contentsOfFile: url.path) else { return nil }
+        let scale = min(1, 1200 / max(image.size.width, image.size.height))
+        let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        guard let data = resized.jpegData(compressionQuality: 0.8) else { return nil }
+        try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+        return (try? data.write(to: cached, options: .atomic)) == nil ? nil : cached
     }
 
     private func currentFSRS() -> FSRS {

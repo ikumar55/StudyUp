@@ -105,6 +105,25 @@ final class StudyUpUITests: XCTestCase {
     }
 
     @MainActor
+    func testRichCardShowsCodeAndImage() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore", "-richCardSample"]
+        app.launch()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Study now'")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["Show Answer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["uint64_t cr3 = read_cr3();"].exists)
+        app.buttons["Show Answer"].tap()
+        let image = app.buttons["Image"]
+        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        attachScreenshot("13-rich-card", app)
+        image.tap()
+        XCTAssertTrue(app.buttons["Close Image"].waitForExistence(timeout: 5))
+        attachScreenshot("14-zoomed-image", app)
+        app.buttons["Close Image"].tap()
+        XCTAssertTrue(app.buttons["Image"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSyncScreenShowsPairingSteps() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-inMemoryStore"]

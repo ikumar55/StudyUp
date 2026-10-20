@@ -19,6 +19,9 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     private let host = UIHostingController(rootView: AnswerView(path: "", front: "", back: ""))
 
+    /// Image references in card text (`![](image:<id>)`); the images arrive as attachments instead.
+    private static let imageReference = /!\[[^\]]*\]\(image:[0-9a-fA-F-]{36}\)/
+
     override func viewDidLoad() {
         super.viewDidLoad()
         host.view.backgroundColor = .clear
@@ -39,8 +42,10 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         let info = content.userInfo
         host.rootView = AnswerView(
             path: info[Key.path] as? String ?? content.title,
-            front: info[Key.front] as? String ?? content.body,
-            back: info[Key.back] as? String ?? ""
+            front: Self.withoutImages(info[Key.front] as? String ?? content.body),
+            back: Self.withoutImages(info[Key.back] as? String ?? ""),
+            frontImages: Self.images(in: content.attachments, prefix: "question-"),
+            backImages: Self.images(in: content.attachments, prefix: "answer-")
         )
 
         let width = max(view.bounds.width, 1)
@@ -61,10 +66,32 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     }
 }
 
+extension NotificationViewController {
+    static func withoutImages(_ text: String) -> String {
+        text.replacing(imageReference, with: "")
+            .components(separatedBy: "\n")
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            .joined(separator: "\n")
+    }
+
+    /// Images the app attached to the reminder, identified by "question-" or "answer-" prefixes.
+    static func images(in attachments: [UNNotificationAttachment], prefix: String) -> [UIImage] {
+        attachments.filter { $0.identifier.hasPrefix(prefix) }.compactMap { attachment in
+            // Attachments live in the notification system's store, outside the extension's sandbox.
+            let url = attachment.url
+            guard url.startAccessingSecurityScopedResource() else { return UIImage(contentsOfFile: url.path) }
+            defer { url.stopAccessingSecurityScopedResource() }
+            return UIImage(contentsOfFile: url.path)
+        }
+    }
+}
+
 private struct AnswerView: View {
     let path: String
     let front: String
     let back: String
+    var frontImages: [UIImage] = []
+    var backImages: [UIImage] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -73,14 +100,31 @@ private struct AnswerView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text(Self.markdown(front))
-                .font(.headline)
+            if !front.isEmpty {
+                Text(Self.markdown(front))
+                    .font(.headline)
+            }
+            images(frontImages)
             Divider()
-            Text(Self.markdown(back))
-                .font(.body)
+            if !back.isEmpty {
+                Text(Self.markdown(back))
+                    .font(.body)
+            }
+            images(backImages)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
+    }
+
+    @ViewBuilder
+    private func images(_ images: [UIImage]) -> some View {
+        ForEach(Array(images.enumerated()), id: \.offset) { _, image in
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: 260, alignment: .leading)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
     }
 
     /// Inline Markdown (**bold**, *italic*, `code`), matching how the app renders cards.

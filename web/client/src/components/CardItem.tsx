@@ -4,6 +4,7 @@ import type { CardRecord } from '../../../shared/protocol.ts'
 import { endDrag, startDrag } from '../dragAndDrop.ts'
 import { hasModifier, modKey, plainText } from '../format.ts'
 import type { CardActions } from '../types.ts'
+import { useImageInsertion } from '../useImageInsertion.ts'
 import { AutoTextarea } from './AutoTextarea.tsx'
 import { EditIcon, GripIcon, MoveIcon, TrashIcon } from './Icons.tsx'
 import { Markdown } from './Markdown.tsx'
@@ -132,6 +133,9 @@ function CardEditor({ card, focus, actions, onDone }: EditorProps) {
   const [saving, setSaving] = useState(false)
   const frontRef = useRef<HTMLTextAreaElement>(null)
   const backRef = useRef<HTMLTextAreaElement>(null)
+  const frontImages = useImageInsertion(frontRef, setFront)
+  const backImages = useImageInsertion(backRef, setBack)
+  const uploading = frontImages.uploading || backImages.uploading
 
   useEffect(() => {
     const field = focus === 'back' ? backRef.current : frontRef.current
@@ -146,7 +150,7 @@ function CardEditor({ card, focus, actions, onDone }: EditorProps) {
   }
 
   const save = async () => {
-    if (saving) return
+    if (saving || uploading) return
     if (front.trim() === card.front && back.trim() === card.back) return close()
     if (!front.trim() || !back.trim()) {
       ;(front.trim() ? backRef : frontRef).current?.focus()
@@ -179,6 +183,9 @@ function CardEditor({ card, focus, actions, onDone }: EditorProps) {
         rows={1}
         value={front}
         onChange={(event) => setFront(event.target.value)}
+        onPaste={frontImages.onPaste}
+        onDragOver={frontImages.onDragOver}
+        onDrop={frontImages.onDrop}
       />
       <label className="field-label" htmlFor={`edit-back-${card.id}`}>Answer</label>
       <AutoTextarea
@@ -188,11 +195,16 @@ function CardEditor({ card, focus, actions, onDone }: EditorProps) {
         rows={2}
         value={back}
         onChange={(event) => setBack(event.target.value)}
+        onPaste={backImages.onPaste}
+        onDragOver={backImages.onDragOver}
+        onDrop={backImages.onDrop}
       />
       <div className="card-editor-footer">
-        <span className="quick-hint"><kbd>{modKey}↩</kbd> save · <kbd>Esc</kbd> cancel</span>
+        <span className="quick-hint">
+          {uploading ? 'Uploading image…' : <><kbd>{modKey}↩</kbd> save · <kbd>Esc</kbd> cancel · paste images with <kbd>{modKey}V</kbd></>}
+        </span>
         <button type="button" className="button" onClick={close}>Cancel</button>
-        <button type="button" className="button button-primary" disabled={saving} onClick={() => void save()}>
+        <button type="button" className="button button-primary" disabled={saving || uploading} onClick={() => void save()}>
           Save
         </button>
       </div>
