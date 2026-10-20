@@ -115,4 +115,6 @@ xcodebuild test -project StudyUp.xcodeproj -scheme StudyUp \
   -destination 'platform=iOS Simulator,name=iPhone 17' -parallel-testing-enabled NO
 ```
 
+Device testing: `TESTING.md` is the running checklist of what to verify on the iPhone. Add an item there for every new feature.
+
 To run on the iPhone: open `StudyUp.xcodeproj`, pick the iPhone as the run destination, and press ⌘R. Repeat at least every 7 days, because of free provisioning.
