@@ -19,6 +19,19 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    NavigationLink {
+                        SyncSettingsView()
+                    } label: {
+                        LabeledContent {
+                            Text(SyncEngine.shared.isPaired ? "On" : "Off")
+                        } label: {
+                            Label("Sync with Mac", systemImage: "laptopcomputer.and.iphone")
+                        }
+                    }
+                } footer: {
+                    Text("Write cards on your Mac in the StudyUp web app and they show up here.")
+                }
                 remindersSection
                 if remindersEnabled, scheduler.canSchedule || scheduler.authorizationStatus == .notDetermined {
                     Section {

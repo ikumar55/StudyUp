@@ -129,7 +129,7 @@ struct DeleteFolderConfirmation: ViewModifier {
             presenting: folder
         ) { folder in
             Button("Delete Folder and \(folder.allCards.count) Cards", role: .destructive) {
-                context.delete(folder)
+                context.deleteSyncing(folder)
             }
         } message: { _ in
             Text("All subfolders, cards and review history inside it will be deleted.")

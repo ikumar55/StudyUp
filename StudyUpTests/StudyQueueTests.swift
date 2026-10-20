@@ -10,10 +10,7 @@ struct StudyQueueTests {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     init() throws {
-        container = try ModelContainer(
-            for: Folder.self, Card.self, ReviewLog.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
+        container = try Persistence.makeContainer(inMemory: true)
         context = container.mainContext
     }
 

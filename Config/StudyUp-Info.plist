@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged with the keys Xcode generates. Needed to find and sync with the StudyUp server on a Mac. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>StudyUp looks for your Mac on this Wi-Fi network to sync your flashcards.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_studyup._tcp</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- The Mac server speaks plain HTTP on the local network only. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

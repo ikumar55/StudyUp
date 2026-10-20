@@ -1,0 +1,34 @@
+{
+  "name": "studyup-web",
+  "private": true,
+  "type": "module",
+  "description": "StudyUp's Mac web app: a local server and editor that syncs with the iPhone app.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server/index.ts",
+    "dev:server": "node --watch server/index.ts",
+    "dev:client": "vite --config client/vite.config.ts",
+    "build": "vite build --config client/vite.config.ts",
+    "test": "node --test server/test/*.test.ts client/src/*.test.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "service:install": "./scripts/install-service.sh",
+    "service:uninstall": "./scripts/uninstall-service.sh"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "hono": "^4.13.13",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

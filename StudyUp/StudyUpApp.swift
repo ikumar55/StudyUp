@@ -16,12 +16,13 @@ struct StudyUpApp: App {
             switch phase {
             case .active:
                 ReminderScheduler.shared.reschedule(context: context)
+                Task { await SyncEngine.shared.sync(context: context) }
             case .background:
-                // Keep the app alive long enough to finish replacing pending reminders.
+                // Keep the app alive long enough to sync and replace pending reminders.
                 let taskID = UIApplication.shared.beginBackgroundTask()
-                let update = ReminderScheduler.shared.reschedule(context: context)
                 Task {
-                    await update.value
+                    await SyncEngine.shared.sync(context: context)
+                    await ReminderScheduler.shared.reschedule(context: context).value
                     UIApplication.shared.endBackgroundTask(taskID)
                 }
             default:

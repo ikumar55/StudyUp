@@ -44,6 +44,26 @@ Automated tests run on the simulator: `xcodebuild test … -parallel-testing-ena
 | [ ] | Reminders keep coming for several days **without opening the app** | |
 | [ ] | Turning "Study reminders" off in Settings stops them | |
 
+## Phase 3: Mac web app and sync
+
+Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://localhost:8787.
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | The editor opens at localhost:8787 and still works after restarting the Mac (the service starts at login) | |
+| [ ] | iPhone: Settings → Sync with Mac asks for **Local Network** permission, then lists the Mac | |
+| [ ] | Pairing with the 6-digit code from the editor works; a wrong code shows an error | |
+| [ ] | Cards already on the phone appear in the editor after the first sync | |
+| [ ] | A card written in the editor appears on the phone after reopening the app | |
+| [ ] | A card edited on the phone shows the edit in the editor | |
+| [ ] | Deleting a folder on either side removes it on the other after a sync | |
+| [ ] | Studying on the phone updates the card status in the editor ("Due in 3d") | |
+| [ ] | Grading from a notification, then opening the app, syncs that review | |
+| [ ] | With the Mac asleep or on other Wi-Fi, the phone shows "Couldn't reach your Mac" and nothing breaks | |
+| [ ] | Bulk paste in the editor creates many cards, which reach the phone | |
+| [ ] | Delete and reinstall the app, pair again: all cards **and their progress** come back | |
+| [ ] | Another computer on the Wi-Fi can't open the editor (try http://<mac-name>.local:8787 from another device: expect "only available on the Mac running it") | |
+
 ## Feel and feedback
 
 Real use is what settles these defaults (currently up to 8 reminders a day, 3 cards each, 9 AM – 9 PM, 10 new cards a day).

@@ -1,0 +1,331 @@
+/* Quick add, the card list, cards, and search results. */
+
+/* MARK: Quick add */
+
+.quick-add {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 16px 18px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.field-input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 14.5px;
+  line-height: 1.45;
+  resize: none;
+  overflow: hidden;
+  transition: border-color 120ms, box-shadow 120ms, background-color 120ms;
+}
+
+.field-input::placeholder {
+  color: var(--text-3);
+  opacity: 0.8;
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+#quick-front {
+  font-weight: 550;
+}
+
+.quick-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-hint {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.quick-hint kbd {
+  font-size: 11px;
+}
+
+.quick-hint-warning {
+  color: var(--orange);
+  font-weight: 500;
+}
+
+.quick-added {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--success);
+  font-weight: 550;
+  animation: added-in 220ms ease-out;
+}
+
+@keyframes added-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+.paste-offer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 13px;
+}
+
+.paste-offer span {
+  flex: 1;
+}
+
+.quick-preview {
+  padding: 12px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+}
+
+/* MARK: Card list */
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  display: flex;
+  gap: 14px;
+  padding: 14px 14px 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  scroll-margin: 80px;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+}
+
+.card:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.card.is-editing {
+  display: block;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.card.is-highlighted {
+  animation: highlight 2.4s ease-out;
+}
+
+@keyframes highlight {
+  0%, 30% { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.card-main {
+  flex: 1;
+  min-width: 0;
+  cursor: text;
+}
+
+.card-folder {
+  margin-bottom: 4px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.card-front {
+  font-size: 14.5px;
+  font-weight: 550;
+}
+
+.card-back {
+  color: var(--text-2);
+}
+
+.card-divider {
+  height: 1px;
+  margin: 9px 0;
+  background: var(--border);
+}
+
+.card-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  flex: none;
+}
+
+.card-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.card:hover .card-actions,
+.card:focus-within .card-actions {
+  opacity: 1;
+}
+
+.card-grip {
+  cursor: grab;
+}
+
+.card-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-editor .field-input + .field-label {
+  margin-top: 8px;
+}
+
+.card-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.card-editor-footer .quick-hint {
+  flex: 1;
+}
+
+.show-more {
+  align-self: center;
+  margin-top: 6px;
+}
+
+/* MARK: Status badges */
+
+.status {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.status-new {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.status-learning {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
+.status-due {
+  background: var(--orange-soft);
+  color: var(--orange);
+}
+
+.status-scheduled {
+  background: var(--surface-hover);
+  color: var(--text-2);
+}
+
+/* MARK: Search results */
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "path status"
+    "front status"
+    "back status";
+  column-gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: left;
+}
+
+.search-result.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-result .status {
+  grid-area: status;
+  align-self: start;
+}
+
+.search-path {
+  grid-area: path;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.search-front {
+  grid-area: front;
+  font-weight: 550;
+}
+
+.search-back {
+  grid-area: back;
+  color: var(--text-2);
+  font-size: 13px;
+}

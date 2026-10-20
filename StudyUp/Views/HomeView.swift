@@ -139,5 +139,5 @@ struct HomeView: View {
 
 #Preview {
     HomeView()
-        .modelContainer(for: [Folder.self, Card.self, ReviewLog.self], inMemory: true)
+        .modelContainer(try! Persistence.makeContainer(inMemory: true))
 }

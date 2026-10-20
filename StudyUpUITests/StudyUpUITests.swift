@@ -104,6 +104,20 @@ final class StudyUpUITests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
+    @MainActor
+    func testSyncScreenShowsPairingSteps() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+        app.buttons["Settings"].tap()
+        attachScreenshot("11-settings-with-sync", app)
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sync with Mac'")).firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Sync with Mac"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Pair"].exists)
+        XCTAssertFalse(app.buttons["Pair"].isEnabled)
+        attachScreenshot("12-sync-pairing", app)
+    }
+
     private func allowNotificationsIfAsked(_ app: XCUIApplication, _ springboard: XCUIApplication) {
         let turnOn = app.buttons["Turn On Study Reminders"]
         if turnOn.waitForExistence(timeout: 3) {

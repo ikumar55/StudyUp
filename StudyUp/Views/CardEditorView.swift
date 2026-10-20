@@ -70,7 +70,7 @@ struct CardEditorView: View {
                     }
                     Section {
                         Button("Delete Card", role: .destructive) {
-                            context.delete(card)
+                            context.deleteSyncing(card)
                             dismiss()
                         }
                     }
@@ -108,8 +108,7 @@ struct CardEditorView: View {
         let front = front.trimmingCharacters(in: .whitespacesAndNewlines)
         let back = back.trimmingCharacters(in: .whitespacesAndNewlines)
         if let card {
-            card.front = front
-            card.back = back
+            card.edit(front: front, back: back)
         } else {
             let newCard = Card(front: front, back: back)
             context.insert(newCard)

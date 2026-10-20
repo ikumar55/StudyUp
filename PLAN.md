@@ -22,7 +22,7 @@ A personal iOS app for **micro-studying through the day**. I write flashcards as
 | Scheduler | FSRS-5 with Anki-style learning steps (1m, 10m; relearn 10m) | Anki's current default; fewer reviews for the same retention than SM-2 |
 | Grading | Wrong / Right / Easy (FSRS Again / Good / Easy) | Chosen 2026-10-19; "Hard" adds little |
 | Apple account | Free (Personal Team) | No $99/yr. The app must be reinstalled from Xcode every 7 days. No iCloud/CloudKit, and App Groups may not be available |
-| Writing cards on the Mac | Markdown file in iCloud Drive, imported on the phone (phase 3) | Replaces sync, which needs the paid account |
+| Writing cards on the Mac | Local web app on the Mac (TypeScript: React UI + Node server + SQLite) that syncs with the phone over Wi-Fi (phase 3) | Chosen 2026-10-20 over a phone-hosted editor: you can write anytime, the Mac keeps a backup, and it can move to the cloud later by hosting the same server |
 | Bundle ID | `com.ikumar55.StudyUp` | |
 | Git identity | Repo-local config pushes as `ikumar55` | The machine's default GitHub login is a different account |
 
@@ -72,12 +72,36 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [x] Notification Content Extension (`StudyUpNotificationContent/`): long-press shows the answer; buttons show intervals ("Right · 3d")
 - [x] Plan up to 7 days ahead within the 64-notification limit, so reminders keep coming even if the app isn't opened. This replaced BGAppRefreshTask, which iOS runs unpredictably.
 
-### Phase 3: Quality of life
-- [ ] Markdown file import, including from iCloud Drive (for writing cards on the Mac), without duplicates
-- [ ] Export and backup (JSON or Markdown), which matters with free provisioning
-- [ ] Rich content: code blocks, LaTeX for ML math, images
+### Phase 3: Mac web app and sync ✅ (2026-10-20, built and tested on simulator and Mac; device testing pending)
+**3a: Phone foundations**
+- [x] Stable IDs (UUID), `updatedAt` timestamps, and delete tombstones on folders and cards, migrated safely for existing data (optional fields, backfilled at launch)
+- [x] Info.plist keys for local networking (`Config/StudyUp-Info.plist`, merged with Xcode's generated plist)
+
+**3b: Mac server** (`web/server`)
+- [x] Node + TypeScript server with a SQLite database at `~/Library/Application Support/StudyUp/` (Node's built-in `node:sqlite`; Hono for HTTP)
+- [x] REST API for the web UI (this Mac only), plus `/pair` and `/sync` for the phone
+- [x] Advertised on the network over Bonjour (`_studyup._tcp`, with host and port in the TXT record); one-time 6-digit pairing code (burned after 5 wrong tries); sync requires the paired token
+- [x] Starts automatically at login (launchd agent): `web/scripts/install-service.sh` copies the app to Application Support, since background services can't read ~/Desktop
+
+**3c: Sync**
+- [x] Phone discovers the Mac (or takes a typed address), then syncs on app open, on app close, and from Sync Now
+- [x] Content (folders, questions, answers) syncs both ways, with the newest edit winning per record
+- [x] Review progress and logs are owned by the phone and uploaded, so the Mac always has a full backup; a first sync after reinstalling restores them
+- [x] Deletes propagate via tombstones; a sync cursor means only changes are sent
+- [x] Sync status on the phone (Settings → Sync with Mac)
+- [x] Cards left without a folder by a conflicting delete are moved into an "Unfiled" topic, which syncs back
+
+**3d: Web UI** (`web/client`, React + Vite) ✅ (2026-10-20, built and checked in headless Chrome; not yet tried in Safari)
+- [x] Folder tree with create, rename, move (menu or drag-and-drop) and delete, plus keyboard navigation
+- [x] Fast card entry (⌘↩ adds the card and returns to Question), inline editing, live Markdown preview, delete with Undo
+- [x] Bulk paste: `Q:`/`A:` blocks, `question :: answer` lines, or tab-separated, with live preview and skipped-line warnings
+- [x] Search across all cards (⌘K); move cards between folders
+- [x] Download a backup (JSON); iPhone pairing panel; live updates when the phone syncs (polls every 3 s)
+
+### Phase 3.5: Quality of life
+- [ ] Rich content: code blocks, LaTeX for ML math, images (in both the app and the web UI)
 - [ ] Cloze cards ("A page fault occurs when ___")
-- [ ] Search across all cards; move cards between folders
+- [ ] Search and move cards on the phone too
 - [ ] Stats: reviews per day, retention per folder, streak
 - [ ] Include or exclude folders from reminders; pause a folder
 
@@ -86,8 +110,16 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [ ] Home-screen widget showing the next due card
 - [ ] Draft cards with an LLM from pasted notes, approved one by one
 - [ ] Optimize FSRS weights from my own review history
-- [ ] iCloud sync, if I get the paid developer account
+- [ ] Host the sync server in the cloud and add a login, so syncing works away from home Wi-Fi
 - [ ] Anki `.apkg` import
+
+## Sync design notes
+
+- **Two databases:** SwiftData on the phone and SQLite on the Mac. Every folder and card has a UUID shared across both.
+- **Split ownership avoids most conflicts.** *Content* (folder name and parent, card front and back, card folder) is editable on both sides, and the newest `updatedAt` wins per record. *Progress* (FSRS state and review logs) is written only by the phone and copied to the Mac, so it never conflicts.
+- **Protocol:** the phone sends `POST /sync { cursor, changes }`. The Mac applies the changes, then returns everything that changed after `cursor`, plus a new cursor. The cursor is a change sequence number on the Mac, so device clock skew only matters when the same card is edited on both sides between syncs.
+- **Deletes** are tombstones (`deletedAt`), so a delete on one side removes the record on the other instead of the next sync bringing it back.
+- **Moving to the cloud later** means the same server and protocol over HTTPS, plus a login. The phone code doesn't change beyond the server address.
 
 ## Notification design notes
 
@@ -109,6 +141,8 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 # Unit tests
 xcodebuild test -project StudyUp.xcodeproj -scheme StudyUp \
   -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:StudyUpTests
+
+# Server tests, and the end-to-end sync test against a real server: see web/README.md
 
 # Everything, including the UI tests (serial, since parallel clones start without notification permission)
 xcodebuild test -project StudyUp.xcodeproj -scheme StudyUp \

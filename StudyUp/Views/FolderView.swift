@@ -47,7 +47,7 @@ struct FolderView: View {
                             .tint(.primary)
                     }
                     .onDelete { offsets in
-                        for index in offsets { context.delete(cards[index]) }
+                        for index in offsets { context.deleteSyncing(cards[index]) }
                     }
                 }
             }
@@ -71,7 +71,7 @@ struct FolderView: View {
             subfolder.parent = folder
         }
         .folderNameAlert("Rename Folder", isPresented: $isRenaming, initialName: folder.name) { name in
-            folder.name = name
+            folder.rename(to: name)
         }
         .deleteFolderConfirmation($folderToDelete)
     }
