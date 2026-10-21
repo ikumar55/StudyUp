@@ -17,7 +17,7 @@ interface Props {
   folder: FolderRecord
   folderActions: FolderActions
   cardActions: CardActions
-  onAddCard: (folderId: string, front: string, back: string) => Promise<boolean>
+  onAddCards: (folderId: string, cards: { front: string; back: string }[]) => Promise<boolean>
   onBulkAdd: (text?: string) => void
   questionRef: RefObject<HTMLTextAreaElement | null>
   includeSubfolders: boolean
@@ -92,7 +92,7 @@ export function FolderView(props: Props) {
 
       <QuickAdd
         folderName={folder.name}
-        onAdd={(front, back) => props.onAddCard(folder.id, front, back)}
+        onAdd={(cards) => props.onAddCards(folder.id, cards)}
         onBulkAdd={props.onBulkAdd}
         questionRef={props.questionRef}
       />

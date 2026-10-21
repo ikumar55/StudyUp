@@ -4,12 +4,13 @@ import SwiftData
 enum Persistence {
     static let models: [any PersistentModel.Type] = [Folder.self, Card.self, ReviewLog.self, Tombstone.self]
 
-    /// Shared by the UI and by notification actions handled in the background.
     /// UI tests launch with -inMemoryStore so they start empty and never touch real data.
+    static let isInMemory = ProcessInfo.processInfo.arguments.contains("-inMemoryStore")
+
+    /// Shared by the UI and by notification actions handled in the background.
     static let container: ModelContainer = {
-        let inMemory = ProcessInfo.processInfo.arguments.contains("-inMemoryStore")
         do {
-            let container = try makeContainer(inMemory: inMemory)
+            let container = try makeContainer(inMemory: isInMemory)
             backfillSyncMetadata(container.mainContext)
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-richCardSample") {

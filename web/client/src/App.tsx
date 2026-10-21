@@ -224,7 +224,7 @@ export function App() {
         folder={selectedFolder}
         folderActions={actions.folder}
         cardActions={actions.card}
-        onAddCard={actions.addCard}
+        onAddCards={actions.addCards}
         onBulkAdd={openBulk}
         questionRef={questionRef}
         includeSubfolders={includeSubfolders}

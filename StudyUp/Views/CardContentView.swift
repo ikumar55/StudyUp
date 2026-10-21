@@ -1,9 +1,11 @@
 import SwiftUI
 import UIKit
 
-/// Card text displayed with its formatting, code blocks, and images.
+/// Card text displayed with its formatting, math, code blocks, and images.
 struct CardContentView: View {
     let text: String
+    var style: UIFont.TextStyle = .body
+    var weight: UIFont.Weight = .regular
     var images: ImageStore = .shared
 
     var body: some View {
@@ -11,9 +13,11 @@ struct CardContentView: View {
             ForEach(Array(CardContent.blocks(from: text).enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .text(let markdown):
-                    MarkdownText(markdown)
-                case .code(_, let code):
-                    CodeBlock(code: code)
+                    RichText(text: markdown, style: style, weight: weight)
+                case .math(let latex):
+                    MathBlock(latex: latex, style: style)
+                case .code(let language, let code):
+                    CodeBlock(code: code, language: language)
                 case .image(let id):
                     CardImage(id: id, images: images)
                 }
@@ -25,10 +29,11 @@ struct CardContentView: View {
 
 private struct CodeBlock: View {
     let code: String
+    let language: String?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            Text(code)
+            Text(CodeHighlighter.highlight(code, language: language))
                 .font(.system(.callout, design: .monospaced))
                 .textSelection(.enabled)
                 .padding(12)

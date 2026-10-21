@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import type { Progress } from '../../shared/protocol.ts'
-import { cardStatus, keepLineBreaks, plainText, shortDuration, timeAgo } from './format.ts'
+import { cardStatus, displayMath, keepLineBreaks, plainText, shortDuration, timeAgo } from './format.ts'
 
 const day = 86_400_000
 const progress = (state: number, due: number): Progress => ({
@@ -40,7 +40,21 @@ test('keepLineBreaks turns single newlines into hard breaks, except in code', ()
   assert.equal(keepLineBreaks('```\nunclosed\ncode'), '```\nunclosed\ncode')
 })
 
+test('keepLineBreaks leaves multi-line math blocks alone', () => {
+  assert.equal(
+    keepLineBreaks('Softmax:\n$$\n\\sigma(z)_i =\n\\frac{e^{z_i}}{\\sum_j e^{z_j}}\n$$\ndone\nhere'),
+    'Softmax:\n$$\n\\sigma(z)_i =\n\\frac{e^{z_i}}{\\sum_j e^{z_j}}\n$$\ndone  \nhere',
+  )
+})
+
 test('plainText strips common Markdown', () => {
   assert.equal(plainText('What does **`fork()`** return?'), 'What does fork() return?')
   assert.equal(plainText('- [link](http://x) and _em_'), 'link and em')
+})
+
+test('displayMath makes a line holding only $$…$$ a block formula', () => {
+  assert.equal(displayMath('Softmax:\n$$\\sigma(z)$$\nok'), 'Softmax:\n$$\n\\sigma(z)\n$$\nok')
+  // Inline $$ inside a sentence, and multi-line blocks, are left as they are.
+  assert.equal(displayMath('so $$x$$ here'), 'so $$x$$ here')
+  assert.equal(displayMath('$$\nx\n$$'), '$$\nx\n$$')
 })

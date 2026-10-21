@@ -2,6 +2,7 @@ import { getConnInfo } from '@hono/node-server/conninfo'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { randomUUID } from 'node:crypto'
+import { imageIDs } from '../shared/images.ts'
 import type { PairResponse } from '../shared/protocol.ts'
 import { ImageStore, MAX_IMAGE_BYTES } from './images.ts'
 import { parseSyncRequest } from './validate.ts'
@@ -79,7 +80,14 @@ export function createApp(store: Store, images: ImageStore, options: AppOptions 
   app.get('/api/backup', (c) => {
     const date = new Date().toISOString().slice(0, 10)
     c.header('Content-Disposition', `attachment; filename="studyup-backup-${date}.json"`)
-    return c.json(store.backup())
+    const backup = store.backup()
+    // Images go in as base64, so the one file holds everything needed to rebuild the library.
+    const files: Record<string, { mime: string; base64: string }> = {}
+    for (const id of new Set(backup.cards.flatMap((card) => [...imageIDs(card.front), ...imageIDs(card.back)]))) {
+      const image = images.read(id)
+      if (image) files[id] = { mime: image.mime, base64: image.bytes.toString('base64') }
+    }
+    return c.json({ ...backup, images: files })
   })
 
   app.post('/api/images', async (c) => {

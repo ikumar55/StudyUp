@@ -114,11 +114,23 @@ export function plainText(markdown: string): string {
 
 /**
  * * Cards are short notes, so a single Return should start a new line rather than
- * being folded into the paragraph as standard Markdown does. Code blocks are left alone.
+ * being folded into the paragraph as standard Markdown does. Code blocks and $$ math blocks are
+ * left alone, since a forced break inside them would corrupt them.
  */
+/** Card text prepared for the Markdown renderer. */
+export function prepareMarkdown(text: string): string {
+  return keepLineBreaks(displayMath(text))
+}
+
+/** A line holding only `$$…$$` is a centered formula, as on the iPhone. (Markdown math only treats
+ *  `$$` on lines of their own that way; a one-line `$$…$$` would otherwise render inline.) */
+export function displayMath(text: string): string {
+  return text.replace(/^[ \t]*\$\$([^\n]+?)\$\$[ \t]*$/gm, '$$$$\n$1\n$$$$')
+}
+
 export function keepLineBreaks(text: string): string {
   return text
-    .split(/(^(?:```|~~~)[^\n]*\n[\s\S]*?(?:^(?:```|~~~)\s*$|(?![\s\S])))/m)
+    .split(/(^(?:```|~~~)[^\n]*\n[\s\S]*?(?:^(?:```|~~~)\s*$|(?![\s\S]))|\$\$[\s\S]*?\$\$)/m)
     .map((part, i) => (i % 2 === 1 ? part : part.replace(/([^\n])\n(?=[^\n])/g, '$1  \n')))
     .join('')
 }

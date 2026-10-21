@@ -111,7 +111,7 @@ export function BulkImportDialog({ index, initialText, defaultFolderId, onImport
           </div>
           {count === 0 && result.skipped.length === 0 && (
             <p className="bulk-empty">
-              {text.trim() ? 'No cards found. Use “Q:” and “A:” lines, “question :: answer”, or tab-separated lines.' : 'The cards you paste will appear here.'}
+              {text.trim() ? 'No cards found. Use “Q:” and “A:” lines, “question :: answer”, tab-separated lines, or sentences with {{blanks}}.' : 'The cards you paste will appear here.'}
             </p>
           )}
           {result.skipped.length > 0 && (

@@ -81,6 +81,21 @@ nonisolated struct ImageStore: Sendable {
         return files.compactMap { UUID(uuidString: ($0 as NSString).deletingPathExtension) }
     }
 
+    /// Deletes images no card refers to. Recent ones are kept, since an image is added as soon as
+    /// it's picked, before its card is saved. Returns how many were removed.
+    @discardableResult
+    func removeUnused(referenced: Set<UUID>, now: Date = .now, keepNewerThan: TimeInterval = 7 * 86_400) -> Int {
+        var removed = 0
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        for file in files {
+            guard let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent), !referenced.contains(id) else { continue }
+            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? now
+            guard now.timeIntervalSince(modified) >= keepNewerThan else { continue }
+            if (try? FileManager.default.removeItem(at: file)) != nil { removed += 1 }
+        }
+        return removed
+    }
+
     // MARK: - References in card text
 
     private static let reference = /!\[[^\]]*\]\(image:([0-9a-fA-F-]{36})\)/
@@ -92,6 +107,12 @@ nonisolated struct ImageStore: Sendable {
     /// The images a card's text refers to, in order.
     static func references(in text: String) -> [UUID] {
         text.matches(of: reference).compactMap { UUID(uuidString: String($0.output.1)) }
+    }
+
+    /// Every image the given cards use.
+    @MainActor
+    static func references(in cards: [Card]) -> Set<UUID> {
+        Set(cards.flatMap { references(in: $0.front) + references(in: $0.back) })
     }
 
     /// Text with image references swapped for a marker, for places that only show plain text.

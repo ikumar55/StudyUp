@@ -393,6 +393,38 @@ mark {
   font-size: 12.5px;
 }
 
+/* Syntax colors (highlight.js classes), from the app palette so they follow light and dark mode. */
+.markdown .hljs-keyword,
+.markdown .hljs-built_in,
+.markdown .hljs-literal,
+.markdown .hljs-meta .hljs-keyword {
+  color: var(--purple);
+}
+
+.markdown .hljs-string,
+.markdown .hljs-regexp,
+.markdown .hljs-char {
+  color: var(--danger);
+}
+
+.markdown .hljs-number,
+.markdown .hljs-symbol {
+  color: var(--accent);
+}
+
+.markdown .hljs-comment,
+.markdown .hljs-meta {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.markdown .hljs-title,
+.markdown .hljs-title.function_,
+.markdown .hljs-type,
+.markdown .hljs-title.class_ {
+  color: var(--orange);
+}
+
 .markdown blockquote {
   padding-left: 10px;
   border-left: 3px solid var(--border-strong);

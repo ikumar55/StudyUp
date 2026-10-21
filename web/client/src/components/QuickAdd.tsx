@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ClipboardEvent, KeyboardEvent, RefObject } from 'react'
 import { parseBulk } from '../bulkParse.ts'
+import { expandCloze, hasCloze } from '../cloze.ts'
 import { hasModifier, modKey } from '../format.ts'
 import { loadValue, saveValue } from '../storage.ts'
 import { useImageInsertion } from '../useImageInsertion.ts'
@@ -15,8 +16,8 @@ interface Draft {
 
 interface Props {
   folderName: string
-  /** Adds the card; resolves to false if the server refused it. */
-  onAdd: (front: string, back: string) => Promise<boolean>
+  /** Adds the card(s); resolves to false if the server refused them. A cloze question makes several. */
+  onAdd: (cards: { front: string; back: string }[]) => Promise<boolean>
   onBulkAdd: (text?: string) => void
   questionRef: RefObject<HTMLTextAreaElement | null>
 }
@@ -41,6 +42,7 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
   const frontImages = useImageInsertion(questionRef, (edit) => setDraft((d) => ({ ...d, front: edit(d.front) })))
   const backImages = useImageInsertion(answerRef, (edit) => setDraft((d) => ({ ...d, back: edit(d.back) })))
   const uploading = frontImages.uploading || backImages.uploading
+  const clozeCards = hasCloze(draft.front) ? expandCloze(draft.front.trim(), draft.back) : null
 
   useEffect(() => saveValue('draft', draft.front || draft.back ? draft : undefined), [draft])
   useEffect(() => saveValue('preview', preview), [preview])
@@ -66,7 +68,8 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
       questionRef.current?.focus()
       return
     }
-    if (!back) {
+    const cloze = hasCloze(front)
+    if (!back && !cloze) {
       // ⌘↩ in Question with no answer yet just moves on to Answer.
       answerRef.current?.focus()
       return
@@ -80,9 +83,10 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
     setPasteOffer(null)
     setHint(null)
     questionRef.current?.focus()
-    const ok = await onAdd(front, back)
+    const cards = cloze ? expandCloze(front, back) : [{ front, back }]
+    const ok = await onAdd(cards)
     if (ok) {
-      setAdded((current) => ({ count: (current?.folder === folderName ? current.count : 0) + 1, folder: folderName }))
+      setAdded((current) => ({ count: (current?.folder === folderName ? current.count : 0) + cards.length, folder: folderName }))
     } else if (!draftRef.current.front && !draftRef.current.back) {
       // Put the text back so nothing is lost.
       setDraft({ front, back })
@@ -172,7 +176,14 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
         </div>
       )}
 
-      {preview && (draft.front.trim() || draft.back.trim()) && (
+      {preview && clozeCards && clozeCards.map((card, i) => (
+        <div key={i} className="quick-preview" aria-label={`Preview of cloze card ${i + 1}`}>
+          <Markdown className="card-front" text={card.front} />
+          <div className="card-divider" />
+          <Markdown className="card-back" text={card.back} />
+        </div>
+      ))}
+      {preview && !clozeCards && (draft.front.trim() || draft.back.trim()) && (
         <div className="quick-preview" aria-label="Preview">
           <Markdown className="card-front" text={draft.front || ' '} />
           <div className="card-divider" />
@@ -186,13 +197,17 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
             <span className="quick-hint-warning">{hint}</span>
           ) : uploading ? (
             <span className="quick-hint">Uploading image…</span>
+          ) : clozeCards ? (
+            <span className="quick-hint">
+              Cloze: makes {clozeCards.length} {clozeCards.length === 1 ? 'card' : 'cards'}. Answer is optional (an extra note).
+            </span>
           ) : added ? (
             <span key={added.count} className="quick-added">
               <CheckIcon /> {added.count > 1 ? `${added.count} cards added` : 'Card added'} to {added.folder}
             </span>
           ) : (
             <span className="quick-hint">
-              <kbd>{modKey}↩</kbd> add card · <kbd>Tab</kbd> next field · paste screenshots with <kbd>{modKey}V</kbd>
+              <kbd>{modKey}↩</kbd> add · <kbd>Tab</kbd> next field · paste images · $math$
             </span>
           )}
         </div>

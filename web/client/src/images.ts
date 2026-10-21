@@ -1,21 +1,6 @@
-// Images live in card text as `![](image:<id>)`, the same syntax on the Mac and the iPhone.
-// The files themselves are stored and synced separately (see server/images.ts).
+// Browser-side image helpers. The reference syntax itself is in shared/images.ts.
 
-const REFERENCE = /!\[[^\]]*\]\(image:([0-9a-fA-F-]{36})\)/g
-
-export function imageSnippet(id: string): string {
-  return `![](image:${id})`
-}
-
-/** The ids of the images a card's text refers to. */
-export function imageIDs(text: string): string[] {
-  return [...text.matchAll(REFERENCE)].map((match) => match[1].toLowerCase())
-}
-
-/** Card text with image references replaced, for places that show plain text (search results). */
-export function withoutImages(text: string, replacement = '🖼'): string {
-  return text.replace(REFERENCE, replacement)
-}
+export { imageIDs, imageSnippet } from '../../shared/images.ts'
 
 /** Where the browser loads an image reference from. */
 export function imageURL(reference: string): string | null {

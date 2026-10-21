@@ -19,8 +19,6 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     private let host = UIHostingController(rootView: AnswerView(path: "", front: "", back: ""))
 
-    /// Image references in card text (`![](image:<id>)`); the images arrive as attachments instead.
-    private static let imageReference = /!\[[^\]]*\]\(image:[0-9a-fA-F-]{36}\)/
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -42,8 +40,8 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         let info = content.userInfo
         host.rootView = AnswerView(
             path: info[Key.path] as? String ?? content.title,
-            front: Self.withoutImages(info[Key.front] as? String ?? content.body),
-            back: Self.withoutImages(info[Key.back] as? String ?? ""),
+            front: info[Key.front] as? String ?? content.body,
+            back: info[Key.back] as? String ?? "",
             frontImages: Self.images(in: content.attachments, prefix: "question-"),
             backImages: Self.images(in: content.attachments, prefix: "answer-")
         )
@@ -67,13 +65,6 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 }
 
 extension NotificationViewController {
-    static func withoutImages(_ text: String) -> String {
-        text.replacing(imageReference, with: "")
-            .components(separatedBy: "\n")
-            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            .joined(separator: "\n")
-    }
-
     /// Images the app attached to the reminder, identified by "question-" or "answer-" prefixes.
     static func images(in attachments: [UNNotificationAttachment], prefix: String) -> [UIImage] {
         attachments.filter { $0.identifier.hasPrefix(prefix) }.compactMap { attachment in
@@ -100,16 +91,10 @@ private struct AnswerView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if !front.isEmpty {
-                Text(Self.markdown(front))
-                    .font(.headline)
-            }
+            side(front, style: .headline, weight: .semibold)
             images(frontImages)
             Divider()
-            if !back.isEmpty {
-                Text(Self.markdown(back))
-                    .font(.body)
-            }
+            side(back, style: .body)
             images(backImages)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -127,9 +112,25 @@ private struct AnswerView: View {
         }
     }
 
-    /// Inline Markdown (**bold**, *italic*, `code`), matching how the app renders cards.
-    private static func markdown(_ source: String) -> AttributedString {
-        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        return (try? AttributedString(markdown: source, options: options)) ?? AttributedString(source)
+    /// One side of the card, rendered like the app does (Shared/). Images come from the
+    /// notification's attachments instead, since the extension can't read the app's files.
+    @ViewBuilder
+    private func side(_ text: String, style: UIFont.TextStyle, weight: UIFont.Weight = .regular) -> some View {
+        ForEach(Array(CardContent.blocks(from: text).enumerated()), id: \.offset) { _, block in
+            switch block {
+            case .text(let markdown):
+                RichText(text: markdown, style: style, weight: weight)
+            case .math(let latex):
+                MathBlock(latex: latex, style: style)
+            case .code(let language, let code):
+                Text(CodeHighlighter.highlight(code, language: language))
+                    .font(.system(.footnote, design: .monospaced))
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+            case .image:
+                EmptyView()
+            }
+        }
     }
 }

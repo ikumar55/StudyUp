@@ -79,6 +79,12 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | Reminder for a card with a question image: thumbnail in the banner; answer images only on long-press | |
 | [ ] | A card with a ```code block``` shows a monospaced box on the phone, not backticks | |
 | [ ] | Editing a card on the phone that has an image in the middle of its text (written on the Mac) doesn't move the image unless that field is changed | |
+| [ ] | Math: `$\\frac{1}{\\sqrt{d_k}}$` inline and a `$$…$$` line render properly in the web app, the study view, and the long-press notification | |
+| [ ] | Math in Dark Mode on the phone is white, not black | |
+| [ ] | Cloze: "A {{page fault}} occurs when a page isn't in {{physical memory}}." makes 2 cards, on both the web and the phone | |
+| [ ] | Bulk paste of cloze sentences (one per line) makes one card per blank | |
+| [ ] | A code block starting with ```c (or python, js, swift…) shows syntax colors on both sides | |
+| [ ] | Download backup: the file includes an "images" section | |
 
 ## Feel and feedback
 

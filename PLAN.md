@@ -98,17 +98,19 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [x] Search across all cards (⌘K); move cards between folders
 - [x] Download a backup (JSON); iPhone pairing panel; live updates when the phone syncs (polls every 3 s)
 
-### Phase 3.5: Rich content
+### Phase 3.5: Rich content ✅ (2026-10-20, built and tested on simulator and Mac; device testing pending)
 - [x] **Images** (2026-10-20). Cards refer to images as `![](image:<id>)`, the same in the app and on the web. Files are stored next to each database and synced separately: the phone uploads what the Mac lacks, then downloads what it lacks.
   - Web: paste (⌘V), drop, or "Image…"; large images are scaled to 2000 px and stored as WebP; click to zoom
   - iPhone: "Add Image" from Photos in the card editor (scaled to 2000 px, JPEG); tap to zoom full screen, pinch or double-tap to zoom in
   - Notifications: 📷 in the banner text; question images appear as the banner thumbnail; answer images are hidden until long-press
 - [x] **Code blocks** on the iPhone (the web already had them): a monospaced box that scrolls sideways
-- [ ] LaTeX for ML math (KaTeX on the web; the iPhone needs a renderer)
-- [ ] Syntax colors in code blocks
-- [ ] Cloze cards: "A {{page fault}} occurs when…" makes one card per blank
-- [ ] Clean up image files that no card refers to anymore
-- [ ] Include images in the backup download (currently the JSON has the cards only)
+- [x] **LaTeX** (2026-10-20): `$inline$` and `$$display$$`. KaTeX on the web; SwiftMath 1.7.x (Swift package) on the iPhone and in the notification view. Bad LaTeX shows in red without breaking the card.
+- [x] **Syntax colors** in code blocks that name a language (```c): highlight.js on the web; a small built-in highlighter on the iPhone (`Shared/CodeHighlighter.swift`)
+- [x] **Cloze cards**: `{{blank}}`, `{{c1::grouped}}`, `{{answer::hint}}`, one card per blank (or group), same rules on web (`cloze.ts`) and iPhone (`Cloze.swift`); bulk paste accepts cloze sentences
+- [x] Unused image files are removed after 7 days, on the Mac and the iPhone; the phone only uploads images its cards use
+- [x] The backup download includes images (as base64)
+- [ ] Restore from a backup file (the backup can be downloaded, but not restored yet)
+- Shared code: `Shared/` is compiled into both the app and the notification extension (card parser, math, code colors)
 - [ ] Search and move cards on the phone too
 - [ ] Stats: reviews per day, retention per folder, streak
 - [ ] Include or exclude folders from reminders; pause a folder

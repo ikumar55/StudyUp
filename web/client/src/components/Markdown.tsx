@@ -2,23 +2,42 @@ import { memo, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import type { Components } from 'react-markdown'
-import { keepLineBreaks } from '../format.ts'
+import rehypeHighlight from 'rehype-highlight'
+import rehypeKatex from 'rehype-katex'
+import remarkMath from 'remark-math'
+import 'katex/dist/katex.min.css'
+import { prepareMarkdown } from '../format.ts'
 import { imageURL } from '../images.ts'
 
 // react-markdown never renders raw HTML and strips unsafe URLs, so card text can't inject markup.
 // `image:<id>` references are the one custom scheme allowed; they resolve to the server's image store.
 const urlTransform = (url: string) => imageURL(url) ?? defaultUrlTransform(url)
 
+// $inline$ and $$display$$ LaTeX, rendered by KaTeX. Bad LaTeX shows in red instead of failing the card.
+// Code blocks that name their language (```c) get syntax colors; others stay plain.
+const remarkPlugins = [remarkMath]
+const rehypePlugins: Parameters<typeof ReactMarkdown>[0]['rehypePlugins'] = [
+  [rehypeKatex, { throwOnError: false, strict: 'ignore' }],
+  [rehypeHighlight, { detect: false }],
+]
+
 const components: Components = {
   a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer noopener" />,
   img: ({ src, alt }) => (typeof src === 'string' && src ? <CardImage src={src} alt={alt ?? ''} /> : null),
 }
 
-/** Card text rendered as Markdown: inline formatting, lists, code blocks, and images. */
+/** Card text rendered as Markdown: inline formatting, lists, code blocks, math, and images. */
 export const Markdown = memo(function Markdown({ text, className }: { text: string; className?: string }) {
   return (
     <div className={className ? `markdown ${className}` : 'markdown'}>
-      <ReactMarkdown components={components} urlTransform={urlTransform}>{keepLineBreaks(text)}</ReactMarkdown>
+      <ReactMarkdown
+        components={components}
+        urlTransform={urlTransform}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
+      >
+        {prepareMarkdown(text)}
+      </ReactMarkdown>
     </div>
   )
 })

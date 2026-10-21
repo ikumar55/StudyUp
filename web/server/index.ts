@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApp } from './app.ts'
+import { imageIDs } from '../shared/images.ts'
 import { defaultDatabasePath, defaultImagesDirectory, openDatabase } from './db.ts'
 import { ImageStore } from './images.ts'
 import { Store } from './store.ts'
@@ -12,7 +13,17 @@ import { Store } from './store.ts'
 const port = Number(process.env.PORT ?? 8787)
 const computerName = macSetting('ComputerName') ?? 'Mac'
 const store = new Store(openDatabase(), computerName)
-const app = createApp(store, new ImageStore(defaultImagesDirectory()))
+const images = new ImageStore(defaultImagesDirectory())
+const app = createApp(store, images)
+
+// Clean up images no card uses anymore: at startup, then twice a day.
+const removeUnusedImages = () => {
+  const referenced = new Set(store.library().cards.flatMap((card) => [...imageIDs(card.front), ...imageIDs(card.back)]))
+  const removed = images.removeUnused(referenced)
+  if (removed > 0) console.log(`Removed ${removed} unused image${removed === 1 ? '' : 's'}`)
+}
+removeUnusedImages()
+setInterval(removeUnusedImages, 12 * 3_600_000).unref()
 
 // The built web UI (npm run build). During development Vite serves it instead.
 const clientDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'client', 'dist')

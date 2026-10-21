@@ -27,7 +27,8 @@ export interface ActionContext {
 export interface Actions {
   folder: FolderActions
   card: CardActions
-  addCard: (folderId: string, front: string, back: string) => Promise<boolean>
+  /** Adds cards from the quick-add form (one, or several for a cloze question). */
+  addCards: (folderId: string, cards: CardContent[]) => Promise<boolean>
   importCards: (folderId: string, cards: CardContent[]) => Promise<boolean>
   deleteFolder: (id: string) => Promise<void>
 }
@@ -178,9 +179,9 @@ export function useActions(context: ActionContext): Actions {
     return {
       folder,
       card,
-      addCard: async (folderId, front, back) => {
+      addCards: async (folderId, cards) => {
         try {
-          ctx().lib.applyCards(await api.createCards(folderId, [{ front, back }]))
+          ctx().lib.applyCards(await api.createCards(folderId, cards))
           return true
         } catch (error) {
           return fail(error)

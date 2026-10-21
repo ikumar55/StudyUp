@@ -42,12 +42,10 @@ struct StudySessionView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    CardContentView(text: card.front)
-                        .font(.title2.weight(.semibold))
+                    CardContentView(text: card.front, style: .title2, weight: .semibold)
                     if isRevealed {
                         Divider()
-                        CardContentView(text: card.back)
-                            .font(.title3)
+                        CardContentView(text: card.back, style: .title3)
                             .transition(.opacity)
                     }
                 }

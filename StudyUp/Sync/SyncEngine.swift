@@ -103,13 +103,16 @@ final class SyncEngine {
         }
     }
 
-    /// Images never change, so this only fills gaps: uploads the images the Mac is missing, then
-    /// downloads the images cards refer to that this iPhone is missing.
+    /// Images never change, so this only fills gaps: uploads the images cards use that the Mac is
+    /// missing, then downloads the ones this iPhone is missing. Unused images are never sent, since
+    /// the Mac would only clean them up again.
     private func syncImages(server: PairedServer, token: String, context: ModelContext) async throws {
         struct MissingRequest: Encodable { let ids: [UUID] }
         struct MissingResponse: Decodable { let missing: [UUID] }
 
-        let stored = images.storedIDs()
+        let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
+        let referenced = ImageStore.references(in: cards)
+        let stored = images.storedIDs().filter(referenced.contains)
         if !stored.isEmpty {
             let response: MissingResponse = try await post(
                 server.baseURL.appending(path: "images/missing"), body: MissingRequest(ids: stored), token: token
@@ -124,8 +127,6 @@ final class SyncEngine {
             }
         }
 
-        let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
-        let referenced = Set(cards.flatMap { ImageStore.references(in: $0.front) + ImageStore.references(in: $0.back) })
         for id in referenced where !images.contains(id) {
             let data = try await perform(imageRequest(server: server, id: id, token: token), token: token)
             try images.save(data, id: id)

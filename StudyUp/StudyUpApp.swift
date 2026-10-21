@@ -16,7 +16,13 @@ struct StudyUpApp: App {
             switch phase {
             case .active:
                 ReminderScheduler.shared.reschedule(context: context)
-                Task { await SyncEngine.shared.sync(context: context) }
+                Task {
+                    await SyncEngine.shared.sync(context: context)
+                    // A throwaway test library mustn't decide which real image files are unused.
+                    guard !Persistence.isInMemory else { return }
+                    let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
+                    ImageStore.shared.removeUnused(referenced: ImageStore.references(in: cards))
+                }
             case .background:
                 // Keep the app alive long enough to sync and replace pending reminders.
                 let taskID = UIApplication.shared.beginBackgroundTask()

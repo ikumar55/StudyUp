@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { InvalidRequestError } from './store.ts'
 
@@ -51,6 +51,21 @@ export class ImageStore {
   /** The ids among `ids` that this store doesn't have. */
   missing(ids: string[]): string[] {
     return [...new Set(ids.map((id) => id.toLowerCase()))].filter((id) => ID.test(id) && !this.#path(id))
+  }
+
+  /** Deletes images no card refers to. Recent ones are kept, since an image is uploaded as soon as
+   *  it's pasted, before its card is saved. Returns how many were removed. */
+  removeUnused(referenced: Set<string>, now = Date.now(), keepNewerThan = 7 * 86_400_000): number {
+    let removed = 0
+    for (const file of readdirSync(this.directory)) {
+      const id = file.split('.')[0]
+      if (!ID.test(id) || referenced.has(id) || file.endsWith('.partial')) continue
+      const path = join(this.directory, file)
+      if (now - statSync(path).mtimeMs < keepNewerThan) continue
+      unlinkSync(path)
+      removed += 1
+    }
+    return removed
   }
 
   #path(id: string): string | undefined {

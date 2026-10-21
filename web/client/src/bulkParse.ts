@@ -6,8 +6,13 @@
 //           a leading list marker ("- Q:"), and bold labels ("**Q:**").
 //   colons  One card per line: "question :: answer".
 //   tab     One card per line: "question<TAB>answer" (e.g. a spreadsheet or Anki export).
+//   cloze   One sentence per line with {{blanks}}; each blank becomes a card (see cloze.ts).
+//
+// In every format, a question with {{blanks}} needs no answer and expands into one card per blank.
 
-export type BulkFormat = 'qa' | 'colons' | 'tab'
+import { expandCloze, hasCloze } from './cloze.ts'
+
+export type BulkFormat = 'qa' | 'colons' | 'tab' | 'cloze'
 
 export interface ParsedCard {
   front: string
@@ -32,6 +37,7 @@ export const formatNames: Record<BulkFormat, string> = {
   qa: 'Q: / A: blocks',
   colons: 'question :: answer',
   tab: 'Tab-separated',
+  cloze: 'Cloze sentences ({{…}})',
 }
 
 const questionLabel = /^\s*(?:[-*+]\s+)?(\*\*|__)?(?:q|question)(?:\1)?\s*[:：]\s*(?:\1)?\s?/i
@@ -42,12 +48,23 @@ const spacedColons = /\s::|::\s/
 
 export function parseBulk(text: string, format: BulkFormat | null = detectFormat(text)): BulkParseResult {
   const lines = text.replace(/\r\n?/g, '\n').split('\n')
-  switch (format) {
-    case 'qa': return { format, ...parseQA(lines) }
-    case 'colons': return { format, ...parseLines(lines, splitColons, 'No “::” on this line') }
-    case 'tab': return { format, ...parseLines(lines, splitTab, 'No tab on this line') }
-    default: return { format: null, cards: [], skipped: [] }
-  }
+  const parsed = (() => {
+    switch (format) {
+      case 'qa': return parseQA(lines)
+      case 'colons': return parseLines(lines, splitColons, 'No “::” on this line')
+      case 'tab': return parseLines(lines, splitTab, 'No tab on this line')
+      case 'cloze': return parseLines(lines, (line) => (hasCloze(line) ? [line.trim(), ''] : null), 'No {{blank}} on this line')
+      default: return null
+    }
+  })()
+  if (!parsed) return { format: null, cards: [], skipped: [] }
+  return { format, cards: parsed.cards.flatMap(expandBlanks), skipped: parsed.skipped }
+}
+
+/** A card whose question has {{blanks}} becomes one card per blank. */
+function expandBlanks(card: ParsedCard): ParsedCard[] {
+  if (!hasCloze(card.front)) return [card]
+  return expandCloze(card.front, card.back).map((expanded) => ({ ...expanded, line: card.line }))
 }
 
 /** Q:/A: labels are explicit, so they win whenever both appear; otherwise the format with more matching lines. */
@@ -57,14 +74,16 @@ export function detectFormat(text: string): BulkFormat | null {
   let answers = 0
   let colons = 0
   let tabs = 0
+  let clozes = 0
   for (const line of lines) {
     if (questionLabel.test(line)) questions += 1
     else if (answerLabel.test(line)) answers += 1
     if (splitColons(line)) colons += 1
     if (splitTab(line)) tabs += 1
+    if (hasCloze(line)) clozes += 1
   }
-  if (questions > 0 && answers > 0) return 'qa'
-  if (colons === 0 && tabs === 0) return null
+  if (questions > 0 && (answers > 0 || clozes > 0)) return 'qa'
+  if (colons === 0 && tabs === 0) return clozes > 0 ? 'cloze' : null
   return colons >= tabs ? 'colons' : 'tab'
 }
 
@@ -78,7 +97,7 @@ function parseQA(lines: string[]): { cards: ParsedCard[]; skipped: SkippedLine[]
     if (!current) return
     const front = joinLines(current.front)
     const back = joinLines(current.back)
-    if (front && back) {
+    if (front && (back || hasCloze(front))) {
       cards.push({ front, back, line: current.line })
     } else {
       skipped.push({
@@ -135,7 +154,7 @@ function parseLines(
     }
     const [front, back] = parts
     if (!front) skipped.push({ line: lineNumber, text: line.trim(), reason: 'Missing question' })
-    else if (!back) skipped.push({ line: lineNumber, text: line.trim(), reason: 'Missing answer' })
+    else if (!back && !hasCloze(front)) skipped.push({ line: lineNumber, text: line.trim(), reason: 'Missing answer' })
     else cards.push({ front, back, line: lineNumber })
   })
   return { cards, skipped }

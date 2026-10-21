@@ -33,17 +33,31 @@ struct CardEditorView: View {
 
     private var isNew: Bool { card == nil }
 
-    /// Each side needs text or an image; an answer can be just a screenshot.
-    private var canSave: Bool { !front.isEmpty && !back.isEmpty }
+    /// A new card whose question has {{blanks}} becomes one card per blank.
+    private var clozeCount: Int {
+        guard isNew, Cloze.hasBlanks(front.text) else { return 0 }
+        return Cloze.expand(front.text).count
+    }
+
+    /// Each side needs text or an image (an answer can be just a screenshot); a cloze needs no answer.
+    private var canSave: Bool { !front.isEmpty && (!back.isEmpty || clozeCount > 0) }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Question") {
+                Section {
                     TextField("What is a page fault?", text: $front.text, axis: .vertical)
                         .lineLimit(2...8)
                         .focused($focusedField, equals: .front)
                     ImageRow(images: $front.images, onError: { imageError = $0 })
+                } header: {
+                    Text("Question")
+                } footer: {
+                    if clozeCount > 0 {
+                        Text("Cloze: makes \(clozeCount) \(clozeCount == 1 ? "card" : "cards"), one per blank. The answer is optional and is added as a note.")
+                    } else if isNew {
+                        Text("Tip: wrap words in {{double braces}} to make fill-in-the-blank cards.")
+                    }
                 }
                 Section {
                     TextField("The answer you want to recall", text: $back.text, axis: .vertical)
@@ -105,7 +119,7 @@ struct CardEditorView: View {
 
     private func addAndContinue() {
         save()
-        addedCount += 1
+        addedCount += max(clozeCount, 1)
         front = EditableText("")
         back = EditableText("")
         focusedField = .front
@@ -117,9 +131,12 @@ struct CardEditorView: View {
         if let card {
             card.edit(front: front, back: back)
         } else {
-            let newCard = Card(front: front, back: back)
-            context.insert(newCard)
-            newCard.folder = folder
+            let sides = Cloze.hasBlanks(front) ? Cloze.expand(front, extra: back) : [(front: front, back: back)]
+            for side in sides {
+                let newCard = Card(front: side.front, back: side.back)
+                context.insert(newCard)
+                newCard.folder = folder
+            }
         }
     }
 

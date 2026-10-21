@@ -111,3 +111,20 @@ describe('detection', () => {
     assert.equal(parseBulk('a :: b', 'tab').cards.length, 0)
   })
 })
+
+test('cloze sentences, one per line, make one card per blank', () => {
+  const result = parseBulk('A {{page fault}} traps to the {{kernel}}.\nThe {{TLB}} caches translations.\nno blanks here')
+  assert.equal(result.format, 'cloze')
+  assert.deepEqual(result.cards.map((c) => c.front), [
+    'A **[…]** traps to the kernel.',
+    'A page fault traps to the **[…]**.',
+    'The **[…]** caches translations.',
+  ])
+  assert.deepEqual(result.skipped.map((s) => s.line), [3])
+})
+
+test('a Q: with blanks needs no A:', () => {
+  const result = parseBulk('Q: The {{TLB}} caches translations.\nQ: What is paging?\nA: Fixed-size memory blocks.')
+  assert.equal(result.format, 'qa')
+  assert.deepEqual(result.cards.map((c) => c.front), ['The **[…]** caches translations.', 'What is paging?'])
+})

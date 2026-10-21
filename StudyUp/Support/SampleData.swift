@@ -70,8 +70,8 @@ extension SampleData {
         let folder = Folder(name: "Rich Content")
         context.insert(folder)
         let card = Card(
-            front: "How does x86-64 translate an address?\n```c\nuint64_t cr3 = read_cr3();\n```",
-            back: "Four levels of tables:\n\(ImageStore.snippet(for: imageID))\nEach level uses **9 bits** of the address."
+            front: "How does x86-64 translate an address with $2^{48}$ bytes of space?\n```c\nuint64_t cr3 = read_cr3(); // page table root\n```",
+            back: "Four levels of tables:\n\(ImageStore.snippet(for: imageID))\nEach level uses **9 bits**, since $\\frac{48 - 12}{4} = 9$:\n$$\\text{VA} = \\sum_{i=1}^{4} 2^{12 + 9(4 - i)} \\cdot \\text{index}_i + \\text{offset}$$"
         )
         context.insert(card)
         card.folder = folder

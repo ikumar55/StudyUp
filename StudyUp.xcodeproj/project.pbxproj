@@ -10,6 +10,8 @@
 		0842B4603088165400BAF8BD /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0842B45F3088165400BAF8BD /* UserNotifications.framework */; };
 		0842B4623088165400BAF8BD /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0842B4613088165400BAF8BD /* UserNotificationsUI.framework */; };
 		0842B46C3088165400BAF8BD /* StudyUpNotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0842B45D3088165400BAF8BD /* StudyUpNotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5A1E0001308A000000000005 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1E0001308A000000000003 /* SwiftMath */; };
+		5A1E0001308A000000000006 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 5A1E0001308A000000000004 /* SwiftMath */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +95,11 @@
 			path = StudyUpUITests;
 			sourceTree = "<group>";
 		};
+		5A1E0001308A000000000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +109,7 @@
 			files = (
 				0842B4623088165400BAF8BD /* UserNotificationsUI.framework in Frameworks */,
 				0842B4603088165400BAF8BD /* UserNotifications.framework in Frameworks */,
+				5A1E0001308A000000000006 /* SwiftMath in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -109,6 +117,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5A1E0001308A000000000005 /* SwiftMath in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -145,6 +154,7 @@
 				08FDC6143087D2FF00DA74BF /* StudyUpTests */,
 				08FDC61E3087D2FF00DA74BF /* StudyUpUITests */,
 				0842B4633088165400BAF8BD /* StudyUpNotificationContent */,
+				5A1E0001308A000000000001 /* Shared */,
 				0842B45E3088165400BAF8BD /* Frameworks */,
 				08FDC6053087D2FE00DA74BF /* Products */,
 			);
@@ -178,9 +188,11 @@
 			);
 			fileSystemSynchronizedGroups = (
 				0842B4633088165400BAF8BD /* StudyUpNotificationContent */,
+				5A1E0001308A000000000001 /* Shared */,
 			);
 			name = StudyUpNotificationContent;
 			packageProductDependencies = (
+				5A1E0001308A000000000004 /* SwiftMath */,
 			);
 			productName = StudyUpNotificationContent;
 			productReference = 0842B45D3088165400BAF8BD /* StudyUpNotificationContent.appex */;
@@ -202,9 +214,11 @@
 			);
 			fileSystemSynchronizedGroups = (
 				08FDC6063087D2FE00DA74BF /* StudyUp */,
+				5A1E0001308A000000000001 /* Shared */,
 			);
 			name = StudyUp;
 			packageProductDependencies = (
+				5A1E0001308A000000000003 /* SwiftMath */,
 			);
 			productName = StudyUp;
 			productReference = 08FDC6043087D2FE00DA74BF /* StudyUp.app */;
@@ -291,6 +305,9 @@
 			);
 			mainGroup = 08FDC5FB3087D2FE00DA74BF;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5A1E0001308A000000000002 /* XCRemoteSwiftPackageReference "SwiftMath" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 08FDC6053087D2FE00DA74BF /* Products */;
 			projectDirPath = "";
@@ -761,6 +778,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5A1E0001308A000000000002 /* XCRemoteSwiftPackageReference "SwiftMath" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mgriebling/SwiftMath";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5A1E0001308A000000000003 /* SwiftMath */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A1E0001308A000000000002 /* XCRemoteSwiftPackageReference "SwiftMath" */;
+			productName = SwiftMath;
+		};
+		5A1E0001308A000000000004 /* SwiftMath */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A1E0001308A000000000002 /* XCRemoteSwiftPackageReference "SwiftMath" */;
+			productName = SwiftMath;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 08FDC5FC3087D2FE00DA74BF /* Project object */;
 }

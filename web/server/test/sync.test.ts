@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, test } from 'node:test'
@@ -296,6 +296,31 @@ describe('images', () => {
 
     const download = await app.request(`/images/${id}`, { headers: { Authorization: `Bearer ${token}` } })
     assert.deepEqual(new Uint8Array(await download.arrayBuffer()), png)
+  })
+
+  test('the backup includes the images cards use', async () => {
+    const { id } = await (await send('POST', '/api/images', png)).json()
+    const folder = store.createFolder('OS', null)
+    store.createCards(folder.id, [{ front: 'Q', back: `![](image:${id})` }])
+    const backup = (await call('GET', '/api/backup')).body
+    assert.deepEqual(Object.keys(backup.images), [id])
+    assert.deepEqual(new Uint8Array(Buffer.from(backup.images[id].base64, 'base64')), png)
+  })
+
+  test('unused images are removed once they’re a week old', () => {
+    const imageStore = new ImageStore(mkdtempSync(join(tmpdir(), 'studyup-images-')))
+    const used = randomUUID()
+    const recent = randomUUID()
+    const old = randomUUID()
+    for (const id of [used, recent, old]) imageStore.save(id, png)
+    const eightDaysAgo = (Date.now() - 8 * 86_400_000) / 1000
+    utimesSync(join(imageStore.directory, `${used}.png`), eightDaysAgo, eightDaysAgo)
+    utimesSync(join(imageStore.directory, `${old}.png`), eightDaysAgo, eightDaysAgo)
+
+    assert.equal(imageStore.removeUnused(new Set([used])), 1)
+    assert.ok(imageStore.read(used))
+    assert.ok(imageStore.read(recent), 'pasted recently, maybe into a card not saved yet')
+    assert.equal(imageStore.read(old), undefined)
   })
 
   test('phone image routes need the pairing token', async () => {
