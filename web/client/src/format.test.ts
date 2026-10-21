@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import type { Progress } from '../../shared/protocol.ts'
-import { cardStatus, displayMath, keepLineBreaks, plainText, shortDuration, timeAgo } from './format.ts'
+import { cardStatus, displayMath, dueText, keepLineBreaks, plainText, shortDuration, timeAgo } from './format.ts'
 
 const day = 86_400_000
 const progress = (state: number, due: number): Progress => ({
@@ -15,8 +15,9 @@ describe('cardStatus', () => {
     assert.equal(cardStatus(progress(1, now + day), now).label, 'Learning')
     assert.equal(cardStatus(progress(3, now - day), now).label, 'Learning')
     assert.equal(cardStatus(progress(2, now), now).label, 'Due now')
-    assert.equal(cardStatus(progress(2, now + 3 * day), now).label, 'Due in 3d')
-    assert.equal(cardStatus(progress(2, now + 2 * 3_600_000), now).label, 'Due in 2h')
+    const noon = new Date(2027, 0, 15, 12).getTime()
+    assert.equal(cardStatus(progress(2, noon + 3 * day), noon).label, 'Due in 3 days')
+    assert.equal(cardStatus(progress(2, noon + 2 * 3_600_000), noon).label, 'Due later today')
   })
 })
 
@@ -57,4 +58,13 @@ test('displayMath makes a line holding only $$…$$ a block formula', () => {
   // Inline $$ inside a sentence, and multi-line blocks, are left as they are.
   assert.equal(displayMath('so $$x$$ here'), 'so $$x$$ here')
   assert.equal(displayMath('$$\nx\n$$'), '$$\nx\n$$')
+})
+
+test('dueText says when a card comes back in plain words', () => {
+  const noon = new Date(2027, 0, 15, 12).getTime()
+  const later = (days: number) => noon + days * day
+  assert.deepEqual(
+    [later(0.2), later(1), later(4), later(16), later(75), later(365), later(550)].map((due) => dueText(due, noon)),
+    ['later today', 'tomorrow', 'in 4 days', 'in 2 weeks', 'in 2 months', 'in 1 year', 'in 1.5 years'],
+  )
 })

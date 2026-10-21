@@ -132,6 +132,22 @@ export class Store {
     })
   }
 
+  /** "Review today" makes a studied card due now, keeping its history; "reset" starts it over as new.
+   *  Progress is normally written by the phone, but the newer `progress.updatedAt` wins on both sides,
+   *  so these edits reach the phone on its next sync. */
+  changeProgress(id: string, action: 'review-today' | 'reset', now = Date.now()): CardRecord {
+    return this.#transaction(() => {
+      const card = this.#requireCard(id)
+      if (!card.progress || card.progress.state === 0) {
+        throw new InvalidRequestError('This card hasn’t been studied yet, so it’s already in your new cards.')
+      }
+      const progress = action === 'reset'
+        ? { state: 0, due: now, stability: 0, difficulty: 0, step: 0, reps: 0, lapses: 0, lastReview: null, updatedAt: now }
+        : { ...card.progress, due: now, updatedAt: now }
+      return this.#writeCard({ ...card, progress })
+    })
+  }
+
   deleteCard(id: string, now = Date.now()): void {
     this.#transaction(() => {
       const card = this.#requireCard(id)

@@ -86,6 +86,20 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | A code block starting with ```c (or python, js, swift…) shows syntax colors on both sides | |
 | [ ] | Download backup: the file includes an "images" section | |
 
+## Phase 3.6: Today view and card progress
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | The card editor no longer has "Add and Start Next Card"; Add saves and closes | |
+| [ ] | Study buttons say "again today", "later today", "tomorrow", "in N days" | |
+| [ ] | Long-press notification buttons use the same wording | |
+| [ ] | Home: "Today: N cards left" goes down as you answer, and back up when you get one wrong | |
+| [ ] | Home → Today lists upcoming reminders with their cards; earlier ones show as sent | |
+| [ ] | Tapping a reminder reviews exactly the cards the Today screen listed for it | |
+| [ ] | Today → a reminder → Study These Now works | |
+| [ ] | Card editor: Review Today makes the card due now; Reset Progress (with confirmation) makes it New | |
+| [ ] | Web: card "…" → Review today / Reset progress…, and the phone shows the change after a sync | |
+
 ## Feel and feedback
 
 Real use is what settles these defaults (currently up to 8 reminders a day, 3 cards each, 9 AM – 9 PM, 10 new cards a day).

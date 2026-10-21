@@ -44,6 +44,16 @@ final class StudySession: Identifiable {
         return StudySession(title: title, cards: Array(queue.prefix(limit)), fsrs: fsrs, refill: buildQueue)
     }
 
+    /// A session over specific cards (e.g. a reminder's), offering everything else that's due after.
+    static func make(
+        title: String, cards: [Card], context: ModelContext, newCardsPerDay: Int, desiredRetention: Double
+    ) -> StudySession {
+        StudySession(title: title, cards: cards, fsrs: StudySettings.fsrs(desiredRetention: desiredRetention)) {
+            let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+            return StudyQueue.build(from: StudyQueue.cards(in: .all, context: context), newLimit: remainingNew)
+        }
+    }
+
     var current: Card? { queue.first }
 
     func previews(now: Date = .now) -> [Rating: CardSchedule] {

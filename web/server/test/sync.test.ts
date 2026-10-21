@@ -106,6 +106,35 @@ describe('web UI API', () => {
     assert.equal(store.library().cards.length, 0)
   })
 
+  test('review today and reset change a studied card’s progress, newest first', async () => {
+    const token = await pairedToken()
+    const os = folder()
+    const studied = card(os.id, { progress: progress({ due: 9_000_000_000_000, reps: 5, updatedAt: 2000 }) })
+    const { cursor } = await sync(token, { folders: [os], cards: [studied] })
+    local = true
+
+    const due = await call('POST', `/api/cards/${studied.id}/progress`, { action: 'review-today' })
+    assert.equal(due.status, 200)
+    assert.ok(due.body.progress.due <= Date.now())
+    assert.equal(due.body.progress.reps, 5)
+
+    const reset = await call('POST', `/api/cards/${studied.id}/progress`, { action: 'reset' })
+    assert.equal(reset.body.progress.state, 0)
+    assert.equal(reset.body.progress.reps, 0)
+
+    // The phone gets the reset on its next sync.
+    local = false
+    const response = await sync(token, { cursor })
+    assert.equal(response.cards.find((c) => c.id === studied.id)?.progress?.state, 0)
+  })
+
+  test('progress actions need a studied card and a known action', async () => {
+    const created = store.createFolder('OS', null)
+    const [fresh] = store.createCards(created.id, [{ front: 'Q', back: 'A' }])
+    assert.equal((await call('POST', `/api/cards/${fresh.id}/progress`, { action: 'reset' })).status, 400)
+    assert.equal((await call('POST', `/api/cards/${fresh.id}/progress`, { action: 'explode' })).status, 400)
+  })
+
   test('is only available on this Mac', async () => {
     local = false
     assert.equal((await call('GET', '/api/library')).status, 403)

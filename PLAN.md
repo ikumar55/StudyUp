@@ -115,6 +115,14 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [ ] Stats: reviews per day, retention per folder, streak
 - [ ] Include or exclude folders from reminders; pause a folder
 
+### Phase 3.6: Feedback from the first simulator run (2026-10-21)
+- [x] Removed "Add and Start Next Card"; Add saves and closes
+- [x] Plain-language intervals: "again today", "later today", "tomorrow", "in 4 days" (study buttons, notification buttons, card status, web badges)
+- [x] Home shows **Today: N cards left**, with reminders left and the next one's time and size, instead of a bare "3 due"
+- [x] **Today** schedule screen (today only): upcoming reminders with their cards, "Study These Now", and those already sent
+- [x] Each reminder carries its exact cards, so tapping it reviews what the schedule showed
+- [x] **Review Today** and **Reset Progress** for a card, on the iPhone (card editor) and the web (card "…" menu); the web's change reaches the phone on its next sync
+
 ### Phase 4: Nice to have
 - [ ] App icon (notifications currently show a placeholder)
 - [ ] Home-screen widget showing the next due card
@@ -127,6 +135,7 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 
 - **Two databases:** SwiftData on the phone and SQLite on the Mac. Every folder and card has a UUID shared across both.
 - **Split ownership avoids most conflicts.** *Content* (folder name and parent, card front and back, card folder) is editable on both sides, and the newest `updatedAt` wins per record. *Progress* (FSRS state and review logs) is written only by the phone and copied to the Mac, so it never conflicts.
+- Exception: the web app's Review today and Reset progress also write progress. That's safe because the newest `progress.updatedAt` wins on both sides.
 - **Protocol:** the phone sends `POST /sync { cursor, changes }`. The Mac applies the changes, then returns everything that changed after `cursor`, plus a new cursor. The cursor is a change sequence number on the Mac, so device clock skew only matters when the same card is edited on both sides between syncs.
 - **Deletes** are tombstones (`deletedAt`), so a delete on one side removes the record on the other instead of the next sync bringing it back.
 - **Moving to the cloud later** means the same server and protocol over HTTPS, plus a login. The phone code doesn't change beyond the server address.

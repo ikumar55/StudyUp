@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import StudyUp
 
@@ -114,5 +115,66 @@ struct FSRSTests {
 
     @Test func retrievabilityAtStabilityIsNinetyPercent() {
         #expect(abs(fsrs.retrievability(elapsedDays: 7, stability: 7) - 0.9) < 1e-9)
+    }
+}
+
+@MainActor
+struct CardProgressActionTests {
+    @Test func reviewTodayMakesAStudiedCardDueKeepingItsMemory() throws {
+        let container = try Persistence.makeContainer(inMemory: true)
+        let card = Card(front: "Q", back: "A")
+        container.mainContext.insert(card)
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        card.record(.easy, fsrs: FSRS(), context: container.mainContext, now: start)
+        let stability = card.stability
+        #expect(card.due > start.addingTimeInterval(86_400))
+
+        let now = start.addingTimeInterval(3600)
+        card.reviewToday(now: now)
+        #expect(card.due == now)
+        #expect(card.state == .review)
+        #expect(card.stability == stability)
+        #expect(card.progressUpdatedAt == now)
+    }
+
+    @Test func resetStartsOverAsNew() throws {
+        let container = try Persistence.makeContainer(inMemory: true)
+        let card = Card(front: "Q", back: "A")
+        container.mainContext.insert(card)
+        card.record(.good, fsrs: FSRS(), context: container.mainContext, now: .now)
+        card.resetProgress()
+        #expect(card.state == .new)
+        #expect(card.reps == 0)
+        #expect(card.stability == 0)
+        #expect(card.reviewLogs.count == 1)
+    }
+
+    @Test func reviewTodayLeavesNewCardsAlone() throws {
+        let container = try Persistence.makeContainer(inMemory: true)
+        let card = Card(front: "Q", back: "A", createdAt: Date(timeIntervalSince1970: 0))
+        container.mainContext.insert(card)
+        card.reviewToday()
+        #expect(card.progressUpdatedAt == nil)
+    }
+}
+
+struct DueTextTests {
+    let calendar = Calendar(identifier: .gregorian)
+    let now = Date(timeIntervalSince1970: 1_800_000_000)  // a weekday morning, UTC
+
+    private func later(days: Double) -> Date { now.addingTimeInterval(days * 86_400) }
+
+    @Test func sameDayDependsOnTheAnswer() {
+        #expect(DueText.next(now.addingTimeInterval(60), from: now, rating: .again, calendar: calendar) == "again today")
+        #expect(DueText.next(now.addingTimeInterval(600), from: now, rating: .good, calendar: calendar) == "later today")
+    }
+
+    @Test func daysWeeksMonthsYears() {
+        #expect(DueText.next(later(days: 1), from: now, calendar: calendar) == "tomorrow")
+        #expect(DueText.next(later(days: 4), from: now, calendar: calendar) == "in 4 days")
+        #expect(DueText.next(later(days: 16), from: now, calendar: calendar) == "in 2 weeks")
+        #expect(DueText.next(later(days: 75), from: now, calendar: calendar) == "in 2 months")
+        #expect(DueText.next(later(days: 365), from: now, calendar: calendar) == "in 1 year")
+        #expect(DueText.next(later(days: 550), from: now, calendar: calendar) == "in 1.5 years")
     }
 }

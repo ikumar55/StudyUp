@@ -70,6 +70,8 @@ export const api = {
   updateCard: (cardId: string, changes: { front?: string; back?: string; folderId?: string }) =>
     request<CardRecord>('PATCH', `/api/cards/${id(cardId)}`, changes),
   deleteCard: (cardId: string) => request<void>('DELETE', `/api/cards/${id(cardId)}`),
+  changeProgress: (cardId: string, action: 'review-today' | 'reset') =>
+    request<CardRecord>('POST', `/api/cards/${id(cardId)}/progress`, { action }),
 
   /** Uploads an image file; card text then refers to it as `![](image:<id>)`. */
   uploadImage: async (image: Blob): Promise<{ id: string }> => {

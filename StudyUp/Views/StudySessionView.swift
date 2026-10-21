@@ -91,7 +91,7 @@ struct StudySessionView: View {
                 Text(title)
                     .font(.headline)
                 if let preview {
-                    Text(IntervalText.short(preview.due.timeIntervalSince(now)))
+                    Text(DueText.next(preview.due, from: now, rating: rating))
                         .font(.caption)
                 }
             }

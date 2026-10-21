@@ -139,6 +139,14 @@ export function createApp(store: Store, images: ImageStore, options: AppOptions 
     }))
   })
 
+  app.post('/api/cards/:id/progress', async (c) => {
+    const body = await readJSON(c)
+    if (body.action !== 'review-today' && body.action !== 'reset') {
+      throw new InvalidRequestError('Expected action "review-today" or "reset".')
+    }
+    return c.json(store.changeProgress(c.req.param('id'), body.action))
+  })
+
   app.delete('/api/cards/:id', (c) => {
     store.deleteCard(c.req.param('id'))
     return c.body(null, 204)

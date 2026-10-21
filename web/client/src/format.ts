@@ -27,10 +27,29 @@ export function cardStatus(progress: Progress | null, now: number): CardStatus {
     return { label: 'Due now', tone: 'due', detail: `Due since ${formatDateTime(progress.due)} · ${history}` }
   }
   return {
-    label: `Due in ${shortDuration(progress.due - now)}`,
+    label: `Due ${dueText(progress.due, now)}`,
     tone: 'scheduled',
     detail: `Next review ${formatDateTime(progress.due)} · ${history}`,
   }
+}
+
+/**
+ * When a card comes back, in plain words, matching the iPhone (DueText in Formatting.swift):
+ * "later today", "tomorrow", "in 4 days", "in 3 weeks", "in 2 months", "in 1.5 years".
+ */
+export function dueText(due: number, now: number): string {
+  const startOfDay = (time: number) => {
+    const date = new Date(time)
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  }
+  const days = Math.round((startOfDay(due) - startOfDay(now)) / day)
+  if (days <= 0) return 'later today'
+  if (days < 2) return 'tomorrow'
+  if (days < 14) return `in ${days} days`
+  if (days < 60) return `in ${Math.floor(days / 7)} weeks`
+  if (days < 365) return `in ${Math.floor(days / 30)} months`
+  const years = Math.round((days / 365) * 10) / 10
+  return years === 1 ? 'in 1 year' : `in ${years} years`
 }
 
 export function isDue(progress: Progress | null, now: number): boolean {

@@ -52,7 +52,8 @@ final class StudyUpUITests: XCTestCase {
             let allow = springboard.alerts.buttons["Allow"]
             if allow.waitForExistence(timeout: 5) { allow.tap() }
         }
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Next reminder'")).firstMatch.waitForExistence(timeout: 5))
+        let today = app.buttons.matching(NSPredicate(format: "label CONTAINS 'next at'")).firstMatch
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
         attachScreenshot("6-home-with-reminders", app)
 
         app.buttons["Settings"].tap()
@@ -82,7 +83,7 @@ final class StudyUpUITests: XCTestCase {
 
         let studyNow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Study now'")).firstMatch
         XCTAssertTrue(studyNow.waitForExistence(timeout: 5))
-        XCTAssertFalse(studyNow.label.contains("due"))
+        XCTAssertTrue(studyNow.label.contains("7 new"), studyNow.label)
 
         app.buttons["Settings"].tap()
         app.buttons["Send a Test Reminder"].tap()
@@ -93,13 +94,13 @@ final class StudyUpUITests: XCTestCase {
         XCTAssertTrue(banner.waitForExistence(timeout: 15))
         banner.press(forDuration: 1.0)
         // The content extension labels each button with where it sends the card next.
-        let right = springboard.buttons["Right · 10m"]
+        let right = springboard.buttons["Right · later today"]
         XCTAssertTrue(right.waitForExistence(timeout: 5))
         attachScreenshot("10-expanded-reminder", springboard)
         right.tap()
 
-        // The card moved into learning (due again in 10 minutes), so it now counts as due.
-        let updated = NSPredicate(format: "label CONTAINS '1 due'")
+        // The card moved into learning (back later today), so it's no longer a new card.
+        let updated = NSPredicate(format: "label CONTAINS '6 new'")
         expectation(for: updated, evaluatedWith: studyNow)
         waitForExpectations(timeout: 10)
     }
@@ -122,6 +123,33 @@ final class StudyUpUITests: XCTestCase {
         attachScreenshot("14-zoomed-image", app)
         app.buttons["Close Image"].tap()
         XCTAssertTrue(app.buttons["Image"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testTodayScheduleListsPlannedReminders() throws {
+        let app = XCUIApplication()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+        app.buttons["Add Sample Cards"].tap()
+        allowNotificationsIfAsked(app, springboard)
+
+        let today = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Today: 7 cards left'")).firstMatch
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
+        attachScreenshot("15-home-today", app)
+        today.tap()
+        XCTAssertTrue(app.navigationBars["Today"].waitForExistence(timeout: 5))
+        attachScreenshot("16-today-schedule", app)
+
+        // The first upcoming reminder lists its cards and can be studied early. ("1 card" or "3 cards",
+        // depending on the simulator's settings.)
+        let reminder = app.buttons.matching(NSPredicate(format: "label MATCHES '.*[0-9]+ cards?.*'")).firstMatch
+        XCTAssertTrue(reminder.waitForExistence(timeout: 5))
+        reminder.tap()
+        XCTAssertTrue(app.buttons["Study These Now"].waitForExistence(timeout: 5))
+        attachScreenshot("17-reminder-cards", app)
+        app.buttons["Study These Now"].tap()
+        XCTAssertTrue(app.navigationBars["Quick Review"].waitForExistence(timeout: 5))
     }
 
     @MainActor

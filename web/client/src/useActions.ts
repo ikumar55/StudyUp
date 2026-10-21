@@ -147,6 +147,15 @@ export function useActions(context: ActionContext): Actions {
       moveCard: (cardId, folderId) => void moveCard(cardId, folderId),
     }
 
+    const changeProgress = async (cardId: string, action: 'review-today' | 'reset', message: string) => {
+      try {
+        ctx().lib.applyCards([await api.changeProgress(cardId, action)])
+        toasts.show({ message: `${message} Your iPhone picks this up on its next sync.`, kind: 'success' })
+      } catch (error) {
+        fail(error)
+      }
+    }
+
     const card: CardActions = {
       save: async (cardId, front, back) => {
         try {
@@ -174,6 +183,8 @@ export function useActions(context: ActionContext): Actions {
         })
       },
       requestMove: (cardId) => ctx().openMoveCard(cardId),
+      reviewToday: (cardId) => void changeProgress(cardId, 'review-today', 'It’s back in today’s reviews.'),
+      resetProgress: (cardId) => void changeProgress(cardId, 'reset', 'Progress reset. It’s a new card again.'),
     }
 
     return {

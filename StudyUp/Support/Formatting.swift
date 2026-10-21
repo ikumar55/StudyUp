@@ -1,17 +1,23 @@
 import SwiftUI
 
-nonisolated enum IntervalText {
-    /// Compact interval label: "<1m", "10m", "3h", "4d", "2.5mo", "1.3y".
-    static func short(_ interval: TimeInterval) -> String {
-        let minutes = interval / 60
-        if minutes < 1 { return "<1m" }
-        if minutes < 60 { return "\(Int(minutes.rounded()))m" }
-        let hours = minutes / 60
-        if hours < 24 { return "\(Int(hours.rounded()))h" }
-        let days = hours / 24
-        if days < 30 { return "\(Int(days.rounded()))d" }
-        if days < 365 { return String(format: "%.1fmo", days / 30) }
-        return String(format: "%.1fy", days / 365)
+nonisolated enum DueText {
+    /// When a card comes back, in plain words: "again today", "later today", "tomorrow", "in 4 days",
+    /// "in 3 weeks", "in 2 months", "in 1.5 years". Minutes and hours don't matter to the person studying:
+    /// what matters is whether it's today, and if not, roughly when.
+    static func next(_ due: Date, from now: Date = .now, rating: Rating? = nil, calendar: Calendar = .current) -> String {
+        if due <= now || calendar.isDate(due, inSameDayAs: now) {
+            return rating == .again ? "again today" : "later today"
+        }
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: due)).day ?? 0
+        switch days {
+        case ..<2: return "tomorrow"
+        case ..<14: return "in \(days) days"
+        case ..<60: return "in \(days / 7) weeks"
+        case ..<365: return "in \(days / 30) months"
+        default:
+            let years = (Double(days) / 365 * 10).rounded() / 10
+            return years == 1 ? "in 1 year" : "in \(years.formatted()) years"
+        }
     }
 }
 

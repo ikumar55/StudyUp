@@ -2,7 +2,7 @@ import PhotosUI
 import SwiftData
 import SwiftUI
 
-/// Adds cards to a folder (staying open for rapid entry) or edits an existing card.
+/// Adds a card to a folder, or edits an existing one.
 struct CardEditorView: View {
     private enum Field { case front, back }
 
@@ -13,8 +13,8 @@ struct CardEditorView: View {
 
     @State private var front: EditableText
     @State private var back: EditableText
-    @State private var addedCount = 0
     @State private var imageError: String?
+    @State private var isConfirmingReset = false
     @FocusState private var focusedField: Field?
 
     init(folder: Folder) {
@@ -69,20 +69,29 @@ struct CardEditorView: View {
                 } footer: {
                     Text("Supports **bold**, *italic*, `code` and ``` code blocks.")
                 }
-                if isNew {
+                if let card {
                     Section {
-                        Button("Add and Start Next Card", systemImage: "plus.circle.fill", action: addAndContinue)
-                            .disabled(!canSave)
-                    } footer: {
-                        if addedCount > 0, let folder {
-                            Text("Added \(addedCount) \(addedCount == 1 ? "card" : "cards") to \(folder.name).")
-                        }
-                    }
-                } else if let card {
-                    Section("Progress") {
                         LabeledContent("Status", value: statusText(card))
                         LabeledContent("Reviews", value: "\(card.reps)")
                         LabeledContent("Times forgotten", value: "\(card.lapses)")
+                        if card.state != .new {
+                            Button("Review Today", systemImage: "arrow.uturn.backward.circle") { card.reviewToday() }
+                                .disabled(card.due <= .now)
+                            Button("Reset Progress", systemImage: "arrow.counterclockwise", role: .destructive) {
+                                isConfirmingReset = true
+                            }
+                        }
+                    } header: {
+                        Text("Progress")
+                    } footer: {
+                        if card.state != .new {
+                            Text("Review Today brings the card back into today's reviews. Reset Progress starts it over as a new card.")
+                        }
+                    }
+                    .confirmationDialog("Reset this card's progress?", isPresented: $isConfirmingReset, titleVisibility: .visible) {
+                        Button("Reset Progress", role: .destructive) { card.resetProgress() }
+                    } message: {
+                        Text("It will come back as a new card, as if you'd never studied it.")
                     }
                     Section {
                         Button("Delete Card", role: .destructive) {
@@ -96,7 +105,7 @@ struct CardEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(addedCount > 0 ? "Done" : "Cancel") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isNew ? "Add" : "Save") {
@@ -117,14 +126,6 @@ struct CardEditorView: View {
         }
     }
 
-    private func addAndContinue() {
-        save()
-        addedCount += max(clozeCount, 1)
-        front = EditableText("")
-        back = EditableText("")
-        focusedField = .front
-    }
-
     private func save() {
         let front = front.cardText
         let back = back.cardText
@@ -143,10 +144,8 @@ struct CardEditorView: View {
     private func statusText(_ card: Card) -> String {
         switch card.state {
         case .new: return "New"
-        case .learning, .relearning: return "Learning"
-        case .review:
-            let remaining = card.due.timeIntervalSinceNow
-            return remaining <= 0 ? "Due now" : "Next review in \(IntervalText.short(remaining))"
+        case .learning, .relearning, .review:
+            return card.due <= .now ? "Due now" : "Next review \(DueText.next(card.due))"
         }
     }
 }

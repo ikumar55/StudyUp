@@ -117,6 +117,19 @@ final class Card {
         updatedAt = now
     }
 
+    /// Brings a studied card back into today's reviews, keeping its history ("I feel shaky on this").
+    func reviewToday(now: Date = .now) {
+        guard state != .new else { return }
+        due = now
+        progressUpdatedAt = now
+    }
+
+    /// Starts the card over as if it were new ("I've forgotten this"). Its review log is kept.
+    func resetProgress(now: Date = .now) {
+        schedule = CardSchedule(due: now)
+        progressUpdatedAt = now
+    }
+
     /// Applies a grade: advances the schedule and logs the review.
     func record(_ rating: Rating, fsrs: FSRS, context: ModelContext, now: Date) {
         let stateBefore = state

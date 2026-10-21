@@ -6,7 +6,9 @@ import { hasModifier, modKey, plainText } from '../format.ts'
 import type { CardActions } from '../types.ts'
 import { useImageInsertion } from '../useImageInsertion.ts'
 import { AutoTextarea } from './AutoTextarea.tsx'
-import { EditIcon, GripIcon, MoveIcon, TrashIcon } from './Icons.tsx'
+import { ConfirmDialog } from './Dialog.tsx'
+import { EditIcon, GripIcon, MoreIcon, MoveIcon, RefreshIcon, TrashIcon } from './Icons.tsx'
+import { Menu } from './Menu.tsx'
 import { Markdown } from './Markdown.tsx'
 import { StatusBadge } from './StatusBadge.tsx'
 
@@ -21,6 +23,9 @@ interface Props {
 /** One card. Click (or Return) to edit in place; ⌘↩ saves and Esc cancels. ⌫ deletes, M moves. */
 export const CardItem = memo(function CardItem({ card, actions, folderLabel, highlighted }: Props) {
   const [editing, setEditing] = useState<null | 'front' | 'back'>(null)
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null)
+  const [confirmingReset, setConfirmingReset] = useState(false)
+  const studied = card.progress !== null && card.progress.state !== 0
 
   return (
     <article
@@ -65,8 +70,47 @@ export const CardItem = memo(function CardItem({ card, actions, folderLabel, hig
               <button type="button" className="icon-button icon-button-danger" title="Delete (⌫)" aria-label="Delete card" onClick={() => actions.remove(card.id)}>
                 <TrashIcon />
               </button>
+              <button
+                type="button"
+                className="icon-button"
+                title="More"
+                aria-label="More card actions"
+                aria-haspopup="menu"
+                onClick={(event) => {
+                  const box = event.currentTarget.getBoundingClientRect()
+                  setMenuAt({ x: box.left, y: box.bottom + 4 })
+                }}
+              >
+                <MoreIcon />
+              </button>
             </div>
           </div>
+          {menuAt && (
+            <Menu
+              label="Card actions"
+              at={menuAt}
+              onClose={() => setMenuAt(null)}
+              items={studied
+                ? [
+                    { label: 'Review today', icon: <RefreshIcon />, onSelect: () => actions.reviewToday(card.id) },
+                    { label: 'Reset progress…', icon: <RefreshIcon />, danger: true, onSelect: () => setConfirmingReset(true) },
+                  ]
+                : [{ label: 'Not studied yet: it’s already a new card', onSelect: () => {} }]}
+            />
+          )}
+          {confirmingReset && (
+            <ConfirmDialog
+              title="Reset this card’s progress?"
+              message="It will come back as a new card, as if you’d never studied it. Its review history is kept."
+              confirmLabel="Reset Progress"
+              destructive
+              onConfirm={() => {
+                setConfirmingReset(false)
+                actions.resetProgress(card.id)
+              }}
+              onCancel={() => setConfirmingReset(false)}
+            />
+          )}
         </>
       )}
     </article>

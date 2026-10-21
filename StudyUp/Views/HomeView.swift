@@ -22,15 +22,21 @@ struct HomeView: View {
             List {
                 if !allCards.isEmpty {
                     Section {
+                        NavigationLink {
+                            TodayScheduleView()
+                        } label: {
+                            TodaySummaryRow(
+                                cardsLeft: dueToday(remainingNew).count,
+                                upcoming: scheduler.upcomingToday,
+                                remindersEnabled: remindersEnabled && scheduler.canSchedule,
+                                nextReminder: scheduler.nextReminderDate
+                            )
+                        }
                         StudyButtonRow(counts: counts(allCards, remainingNew)) {
                             presenter.session = .make(
                                 title: "All Topics", scope: .all, context: context,
                                 newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
                             )
-                        }
-                    } footer: {
-                        if remindersEnabled, let next = scheduler.nextReminderDate {
-                            Text("Next reminder \(Self.describe(next))")
                         }
                     }
                 }
@@ -86,7 +92,7 @@ struct HomeView: View {
             }
         }
         .fullScreenCover(item: $presenter.session, onDismiss: reschedule) { StudySessionView(session: $0) }
-        .task(id: router.pendingCardID) { openPendingReminder() }
+        .task(id: router.pendingReminder) { openPendingReminder() }
         // Adding sample cards or deleting a folder changes what's due without closing a sheet.
         .onChange(of: allCards.count) { reschedule() }
     }
@@ -116,24 +122,35 @@ struct HomeView: View {
         presenter.sheetDismissed()
     }
 
-    /// Opens a short session starting with the card from a tapped reminder.
+    /// Every card still to study today: due reviews, cards being learned, and today's new cards.
+    private func dueToday(_ remainingNew: Int) -> [Card] {
+        StudyQueue.reminderCandidates(from: allCards, dayStart: Calendar.current.startOfDay(for: .now), newLimit: remainingNew)
+            .map(\.card)
+    }
+
+    /// Opens a short session with exactly the cards a tapped reminder was planned for (those still
+    /// due today). Older reminders without that list start with their card and fill up from what's due.
     private func openPendingReminder() {
-        guard let cardID = router.pendingCardID else { return }
-        router.pendingCardID = nil
+        guard let tap = router.pendingReminder else { return }
+        router.pendingReminder = nil
+        let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+        let stillDue = Set(dueToday(remainingNew).map(ObjectIdentifier.init))
+        let byID = Dictionary(allCards.compactMap { card in card.syncID.map { ($0, card) } }, uniquingKeysWith: { first, _ in first })
+        let planned = tap.cardIDs.compactMap { byID[$0] }.filter { stillDue.contains(ObjectIdentifier($0)) }
+        if !planned.isEmpty {
+            presenter.present(.make(
+                title: "Quick Review", cards: planned, context: context,
+                newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
+            ))
+            return
+        }
+        let cardID = tap.cardID
         let card = try? context.fetch(FetchDescriptor<Card>(predicate: #Predicate { $0.persistentModelID == cardID })).first
         presenter.present(.make(
             title: "Quick Review", scope: .all, context: context,
             newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention,
             startingWith: card, limit: ReminderSettings.load().cardsPerReminder
         ))
-    }
-
-    /// "today at 2:15 PM" / "tomorrow at 9:45 AM"
-    private static func describe(_ date: Date) -> String {
-        let time = date.formatted(date: .omitted, time: .shortened)
-        if Calendar.current.isDateInToday(date) { return "today at \(time)" }
-        if Calendar.current.isDateInTomorrow(date) { return "tomorrow at \(time)" }
-        return date.formatted(date: .abbreviated, time: .shortened)
     }
 }
 

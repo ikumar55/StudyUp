@@ -144,6 +144,21 @@ struct SyncMergerTests {
         #expect(card.progressUpdatedAt == at(50))
     }
 
+    @Test func aResetFromTheMacMakesTheCardNewAgain() {
+        let card = makeCard("Q", in: makeFolder("OS"))
+        card.record(.good, fsrs: FSRS(), context: context, now: at(0))
+        card.record(.good, fsrs: FSRS(), context: context, now: at(600))
+        #expect(card.state == .review)
+        var record = SyncMerger.record(card)!
+        record.progress = ProgressRecord(
+            state: 0, due: at(900), stability: 0, difficulty: 0, step: 0, reps: 0, lapses: 0, lastReview: nil, updatedAt: at(900)
+        )
+        SyncMerger.apply(SyncResponse(cursor: 2, folders: [], cards: [record], reviewLogs: []), context: context)
+        #expect(card.state == .new)
+        #expect(card.reps == 0)
+        #expect(card.reviewLogs.count == 2, "history is kept")
+    }
+
     @Test func deletionsFromTheMacRemoveLocalRecords() {
         let os = makeFolder("OS")
         let keep = makeFolder("Keep")

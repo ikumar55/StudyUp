@@ -26,11 +26,46 @@ struct StudyButtonRow: View {
     }
 
     private var summary: String {
-        guard counts.total > 0 else { return "Nothing due right now" }
-        var parts: [String] = []
-        if counts.learning + counts.review > 0 { parts.append("\(counts.learning + counts.review) due") }
-        if counts.new > 0 { parts.append("\(counts.new) new") }
-        return parts.joined(separator: " · ")
+        guard counts.total > 0 else { return "Nothing to study right now" }
+        let ready = "\(counts.total) \(counts.total == 1 ? "card" : "cards") ready now"
+        return counts.new > 0 ? "\(ready), \(counts.new) new" : ready
+    }
+}
+
+/// "Today: 8 cards left" with when the next reminder is. Opens today's schedule.
+struct TodaySummaryRow: View {
+    let cardsLeft: Int
+    let upcoming: [PlannedReminder]
+    let remindersEnabled: Bool
+    let nextReminder: Date?
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: cardsLeft == 0 ? "checkmark.circle.fill" : "calendar")
+                .font(.title2)
+                .foregroundStyle(cardsLeft == 0 ? Color.green : Color.accentColor)
+                .frame(width: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(cardsLeft == 0 ? "All done for today" : "Today: \(cardsLeft) \(cardsLeft == 1 ? "card" : "cards") left")
+                    .font(.headline)
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var detail: String {
+        guard remindersEnabled else { return "Reminders are off" }
+        if let next = upcoming.first {
+            let count = upcoming.count
+            return "\(count) \(count == 1 ? "reminder" : "reminders") left · next at \(next.fireDate.formatted(date: .omitted, time: .shortened)) (\(next.cardIDs.count) \(next.cardIDs.count == 1 ? "card" : "cards"))"
+        }
+        if let nextReminder, !Calendar.current.isDateInToday(nextReminder) {
+            return "No more reminders today · next \(Calendar.current.isDateInTomorrow(nextReminder) ? "tomorrow" : nextReminder.formatted(.dateTime.weekday())) at \(nextReminder.formatted(date: .omitted, time: .shortened))"
+        }
+        return "No more reminders today"
     }
 }
 
@@ -88,7 +123,7 @@ struct CardRow: View {
     private var status: String {
         if card.state == .new { return "New" }
         let remaining = card.due.timeIntervalSinceNow
-        return remaining <= 0 ? "Due now" : "Due in \(IntervalText.short(remaining))"
+        return remaining <= 0 ? "Due now" : "Due \(DueText.next(card.due))"
     }
 }
 

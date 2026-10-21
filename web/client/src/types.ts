@@ -28,4 +28,8 @@ export interface CardActions {
   save: (cardId: string, front: string, back: string) => Promise<boolean>
   remove: (cardId: string) => void
   requestMove: (cardId: string) => void
+  /** Makes a studied card due now ("I feel shaky on this"). */
+  reviewToday: (cardId: string) => void
+  /** Starts a card over as new ("I've forgotten this"). */
+  resetProgress: (cardId: string) => void
 }
