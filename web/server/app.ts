@@ -1,6 +1,7 @@
 import { getConnInfo } from '@hono/node-server/conninfo'
 import { Hono } from 'hono'
 import type { Context } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { randomUUID } from 'node:crypto'
 import { imageIDs } from '../shared/images.ts'
 import type { PairResponse } from '../shared/protocol.ts'
@@ -31,6 +32,12 @@ export function createApp(store: Store, images: ImageStore, options: AppOptions 
     return c.json({ error: 'Something went wrong on the Mac.' }, 500)
   })
 
+  // Cap request sizes, so a huge request can't use up the Mac's memory (pairing needs no token).
+  app.use('*', (c, next) => bodyLimit({
+    maxSize: maxBodySize(c.req.path),
+    onError: (c) => c.json({ error: 'That request is too large.' }, 413),
+  })(c, next))
+
   // MARK: Reachable from the phone
 
   app.get('/health', (c) => c.json({ ok: true, serverName: store.serverName }))
@@ -44,7 +51,9 @@ export function createApp(store: Store, images: ImageStore, options: AppOptions 
 
   app.post('/sync', async (c) => {
     if (!isPairedDevice(c)) return notPaired(c)
-    return c.json(store.sync(parseSyncRequest(await readJSON(c))))
+    const response = store.sync(parseSyncRequest(await readJSON(c)))
+    store.checkpoint()
+    return c.json(response)
   })
 
   // Image files sync separately from cards: the phone asks which of its images the Mac lacks,
@@ -70,7 +79,9 @@ export function createApp(store: Store, images: ImageStore, options: AppOptions 
   // MARK: This Mac only
 
   app.use('*', async (c, next) => {
-    if (!isLocal(c)) return c.json({ error: 'The StudyUp editor is only available on the Mac running it.' }, 403)
+    if (!isLocal(c) || !isFromEditor(c)) {
+      return c.json({ error: 'The StudyUp editor is only available on the Mac running it.' }, 403)
+    }
     await next()
   })
 
@@ -155,7 +166,36 @@ export function createApp(store: Store, images: ImageStore, options: AppOptions 
   return app
 }
 
+/** Requests the editor's API accepts: addressed to localhost, and (for changes) sent by a page on
+ *  localhost. A connection from this Mac isn't enough on its own: a web page can point its own domain
+ *  at 127.0.0.1 (DNS rebinding) or post to localhost from another site. */
+function isFromEditor(c: Context): boolean {
+  if (!isLoopbackHost(new URL(c.req.url).hostname)) return false
+  const origin = c.req.header('Origin')
+  if (origin === undefined || c.req.method === 'GET' || c.req.method === 'HEAD') return true
+  try {
+    return isLoopbackHost(new URL(origin).hostname)
+  } catch {
+    return false  // e.g. "Origin: null" from a sandboxed page
+  }
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+}
+
+function maxBodySize(path: string): number {
+  if (path === '/pair') return 16 * 1024
+  if (path === '/sync') return 64 * 1024 * 1024
+  if (path.startsWith('/images/') || path === '/api/images') return MAX_IMAGE_BYTES + 64 * 1024
+  return 1024 * 1024
+}
+
+/** Only real JSON: a page on another site can send a plain-text POST without asking first, but not JSON. */
 async function readJSON(c: Context): Promise<Record<string, any>> {
+  if (!c.req.header('Content-Type')?.startsWith('application/json')) {
+    throw new InvalidRequestError('Expected a JSON body.')
+  }
   try {
     const body = await c.req.json()
     if (typeof body === 'object' && body !== null) return body

@@ -34,6 +34,7 @@ final class SyncEngine {
         static let cursor = "sync.cursor"
         static let lastPushStartedAt = "sync.lastPushStartedAt"
         static let lastSyncedAt = "sync.lastSyncedAt"
+        static let databaseID = "sync.databaseID"
     }
 
     init(
@@ -62,6 +63,7 @@ final class SyncEngine {
         // A new pairing starts from scratch: send everything, receive everything.
         defaults.set(0, forKey: Key.cursor)
         defaults.removeObject(forKey: Key.lastPushStartedAt)
+        defaults.removeObject(forKey: Key.databaseID)
         await sync(context: context)
     }
 
@@ -70,7 +72,7 @@ final class SyncEngine {
         server = nil
         lastSyncedAt = nil
         status = .idle
-        for key in [Key.server, Key.cursor, Key.lastPushStartedAt, Key.lastSyncedAt] {
+        for key in [Key.server, Key.cursor, Key.lastPushStartedAt, Key.lastSyncedAt, Key.databaseID] {
             defaults.removeObject(forKey: key)
         }
     }
@@ -83,14 +85,24 @@ final class SyncEngine {
         status = .syncing
         try? context.save()
 
+        let url = server.baseURL.appending(path: "sync")
         let since = defaults.object(forKey: Key.lastPushStartedAt) as? Date ?? .distantPast
-        let request = SyncMerger.pendingChanges(cursor: defaults.integer(forKey: Key.cursor), since: since, context: context)
+        var request = SyncMerger.pendingChanges(cursor: defaults.integer(forKey: Key.cursor), since: since, context: context)
         do {
-            let response: SyncResponse = try await post(server.baseURL.appending(path: "sync"), body: request, token: token)
+            var response: SyncResponse = try await post(url, body: request, token: token)
+            if let known = defaults.string(forKey: Key.databaseID), let current = response.databaseId, current != known {
+                // The Mac's database was replaced (a restored backup or a new Mac), so it may lack things
+                // this phone already sent, and the cursor means nothing there. Start over: send
+                // everything, including review history, and receive everything.
+                SyncMerger.markAllUnsent(context: context)
+                request = SyncMerger.pendingChanges(cursor: 0, since: .distantPast, context: context)
+                response = try await post(url, body: request, token: token)
+            }
             SyncMerger.markSent(request, context: context)
             let changed = SyncMerger.apply(response, context: context)
             try context.save()
             defaults.set(response.cursor, forKey: Key.cursor)
+            defaults.set(response.databaseId, forKey: Key.databaseID)
             // Edits made while this sync was in flight are newer than `now`, so the next sync sends them.
             defaults.set(now, forKey: Key.lastPushStartedAt)
             if changed { ReminderScheduler.shared.reschedule(context: context) }

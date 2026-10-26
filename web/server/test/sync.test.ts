@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, utimesSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, test } from 'node:test'
+import { DatabaseSync } from 'node:sqlite'
 import type { CardRecord, FolderRecord, Progress, SyncRequest, SyncResponse } from '../../shared/protocol.ts'
 import { createApp } from '../app.ts'
+import { BACKUPS_KEPT, backUpDatabase } from '../backups.ts'
 import { openDatabase } from '../db.ts'
 import { ImageStore } from '../images.ts'
 import { Store } from '../store.ts'
+import { MAX_CLOCK_AHEAD } from '../validate.ts'
 
 let store: Store
 let local = true
@@ -139,6 +142,50 @@ describe('web UI API', () => {
     local = false
     assert.equal((await call('GET', '/api/library')).status, 403)
     assert.equal((await call('GET', '/health')).status, 200)
+  })
+
+  test('refuses requests addressed to another name for this Mac (DNS rebinding)', async () => {
+    const response = await app.request('http://evil.example:8787/api/library')
+    assert.equal(response.status, 403)
+    assert.equal((await app.request('http://127.0.0.1:8787/api/library')).status, 200)
+  })
+
+  test('refuses changes sent by a page on another site', async () => {
+    const post = (origin: string) => app.request('http://localhost:8787/api/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: origin },
+      body: JSON.stringify({ name: 'Sneaky', parentId: null }),
+    })
+    assert.equal((await post('https://evil.example')).status, 403)
+    assert.equal((await post('null')).status, 403)
+    assert.equal((await post('http://localhost:5173')).status, 201)
+  })
+
+  test('only accepts JSON bodies', async () => {
+    const response = await app.request('/api/folders', {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ name: 'Sneaky', parentId: null }),
+    })
+    assert.equal(response.status, 400)
+    assert.equal(store.library().folders.length, 0)
+  })
+
+  test('refuses oversized requests, even ones sent without a length', async () => {
+    local = false
+    const big = 'x'.repeat(100_000)
+    const withLength = await app.request('/pair', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: big }),
+    })
+    assert.equal(withLength.status, 413)
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(JSON.stringify({ code: big })))
+        controller.close()
+      },
+    })
+    const chunked = await app.request('/pair', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: stream, duplex: 'half',
+    } as RequestInit)
+    assert.equal(chunked.status, 413)
   })
 })
 
@@ -282,6 +329,96 @@ describe('sync', () => {
     assert.deepEqual(restore.reviewLogs, [log])
   })
 
+  test('a card or folder deleted on the phone keeps its text on the Mac', async () => {
+    const token = await pairedToken()
+    const os = folder()
+    const kept = card(os.id, { front: 'What is a TLB?', back: 'A cache' })
+    const { cursor } = await sync(token, { folders: [os], cards: [kept] })
+
+    // Deletes from the phone carry no text. The phone already deleted them, so they don't go back.
+    const cardDeleted = await sync(token, {
+      cursor, cards: [{ ...kept, folderId: null, front: '', back: '', deleted: true, updatedAt: 2000 }],
+    })
+    assert.deepEqual(store.card(kept.id), { ...kept, deleted: true, updatedAt: 2000 })
+    assert.deepEqual(cardDeleted.cards, [])
+
+    const folderDeleted = await sync(token, {
+      cursor: cardDeleted.cursor, folders: [{ ...os, name: '', parentId: null, deleted: true, updatedAt: 3000 }],
+    })
+    assert.equal(store.folder(os.id)?.name, 'OS')
+    assert.equal(store.folder(os.id)?.deleted, true)
+    assert.deepEqual(folderDeleted.folders, [])
+  })
+
+  test('edit times far in the future are capped at a day ahead', async () => {
+    const token = await pairedToken()
+    const os = folder({ updatedAt: Date.UTC(2100, 0, 1) })
+    const studied = card(os.id, { updatedAt: Date.UTC(2100, 0, 1), progress: progress({ updatedAt: Date.UTC(2100, 0, 1) }) })
+    const before = Date.now()
+    await sync(token, { folders: [os], cards: [studied] })
+    const limit = Date.now() + MAX_CLOCK_AHEAD
+    assert.ok(store.folder(os.id)!.updatedAt <= limit && store.folder(os.id)!.updatedAt >= before + MAX_CLOCK_AHEAD)
+    assert.ok(store.card(studied.id)!.updatedAt <= limit)
+    assert.ok(store.card(studied.id)!.progress!.updatedAt <= limit)
+    // So an edit made on the Mac in two days still wins.
+    store.updateCard(studied.id, { front: 'Later' }, Date.now() + 2 * MAX_CLOCK_AHEAD)
+    await sync(token, { cursor: 0, cards: [studied] })
+    assert.equal(store.card(studied.id)?.front, 'Later')
+  })
+
+  test('the database id stays the same until the database is replaced', async () => {
+    const token = await pairedToken()
+    const first = await sync(token, { folders: [folder()] })
+    const second = await sync(token, { cursor: first.cursor })
+    assert.equal(second.databaseId, first.databaseId)
+
+    // A phone that has seen more changes than this database has means the database was replaced
+    // (e.g. by an older copy), so the id changes and the phone knows to send everything again.
+    const replaced = await sync(token, { cursor: first.cursor + 1000 })
+    assert.notEqual(replaced.databaseId, first.databaseId)
+    assert.equal((await sync(token, { cursor: replaced.cursor })).databaseId, replaced.databaseId)
+  })
+
+  test('an edit that loses on the Mac goes back to the phone, even if the phone saw it before', async () => {
+    const token = await pairedToken()
+    const os = folder()
+    const edited = card(os.id)
+    const { cursor } = await sync(token, { folders: [os], cards: [edited] })
+    store.updateCard(edited.id, { front: 'Edited on the Mac' }, 5000)
+    store.updateFolder(os.id, { name: 'Renamed on the Mac' }, 5000)
+    const received = await sync(token, { cursor })
+    assert.equal(received.cards[0]?.front, 'Edited on the Mac')
+
+    // The phone edits both afterwards, but its clock is behind, so its edits are older and lose.
+    const response = await sync(token, {
+      cursor: received.cursor,
+      folders: [{ ...os, name: 'Renamed on the phone', updatedAt: 4000 }],
+      cards: [{ ...edited, front: 'Edited on the phone', updatedAt: 4000 }],
+    })
+    assert.equal(store.card(edited.id)?.front, 'Edited on the Mac')
+    assert.deepEqual(response.cards.map((c) => c.front), ['Edited on the Mac'])
+    assert.deepEqual(response.folders.map((f) => f.name), ['Renamed on the Mac'])
+
+    // Sending what the Mac already has changes nothing and gets nothing back.
+    const same = await sync(token, { cursor: response.cursor, folders: [store.folder(os.id)!], cards: [store.card(edited.id)!] })
+    assert.deepEqual(same.cards, [])
+    assert.deepEqual(same.folders, [])
+  })
+
+  test('a delete that loses to a newer Mac edit brings the card back to the phone', async () => {
+    const token = await pairedToken()
+    const os = folder()
+    const kept = card(os.id)
+    const { cursor } = await sync(token, { folders: [os], cards: [kept] })
+    store.updateCard(kept.id, { front: 'Edited on the Mac' }, 5000)
+    const received = await sync(token, { cursor })
+    const response = await sync(token, {
+      cursor: received.cursor, cards: [{ ...kept, front: '', back: '', folderId: null, deleted: true, updatedAt: 4000 }],
+    })
+    assert.equal(store.card(kept.id)?.deleted, false)
+    assert.deepEqual(response.cards.map((c) => [c.front, c.deleted]), [['Edited on the Mac', false]])
+  })
+
   test('rejects malformed records', async () => {
     const token = await pairedToken()
     const { status } = await call('POST', '/sync', { cursor: 0, cards: [{ id: 'not-a-uuid' }] }, token)
@@ -358,5 +495,43 @@ describe('images', () => {
     assert.equal((await send('PUT', `/images/${id}`, png)).status, 401)
     assert.equal((await app.request(`/images/${id}`)).status, 401)
     assert.equal((await app.request(`/api/images/${id}`)).status, 403)
+  })
+})
+
+describe('backups', () => {
+  const directory = () => mkdtempSync(join(tmpdir(), 'studyup-backups-'))
+
+  test('saves one snapshot a day that opens as a complete database', () => {
+    const dir = directory()
+    store.createFolder('OS', null)
+    const path = backUpDatabase(openDatabase(':memory:'), dir, new Date(2026, 9, 26, 9))
+    assert.ok(path?.endsWith('studyup-2026-10-26.db'))
+    assert.equal(backUpDatabase(openDatabase(':memory:'), dir, new Date(2026, 9, 26, 18)), null)
+
+    const db = openDatabase(join(dir, 'source.db'))
+    new Store(db).createFolder('Memory', null)
+    const snapshot = backUpDatabase(db, dir, new Date(2026, 9, 27))!
+    const copy = new DatabaseSync(snapshot, { readOnly: true })
+    assert.equal(copy.prepare('SELECT name FROM folders').get()?.name, 'Memory')
+  })
+
+  test('keeps only the newest snapshots', () => {
+    const dir = directory()
+    for (let day = 1; day <= 20; day++) writeFileSync(join(dir, `studyup-2026-09-${String(day).padStart(2, '0')}.db`), '')
+    writeFileSync(join(dir, 'notes.txt'), 'not a backup')
+    backUpDatabase(openDatabase(':memory:'), dir, new Date(2026, 9, 26))
+    const kept = readdirSync(dir).filter((name) => name.endsWith('.db')).sort()
+    assert.equal(kept.length, BACKUPS_KEPT)
+    assert.equal(kept.at(-1), 'studyup-2026-10-26.db')
+    assert.ok(existsSync(join(dir, 'notes.txt')))
+  })
+
+  test('a checkpoint empties the write-ahead log into the database file', () => {
+    const path = join(directory(), 'studyup.db')
+    const fileStore = new Store(openDatabase(path))
+    fileStore.createFolder('OS', null)
+    assert.ok(statSync(`${path}-wal`).size > 0)
+    fileStore.checkpoint()
+    assert.equal(statSync(`${path}-wal`).size, 0)
   })
 })

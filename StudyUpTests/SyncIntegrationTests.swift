@@ -9,7 +9,8 @@ import UIKit
 ///   TEST_RUNNER_STUDYUP_SERVER=http://localhost:8799 xcodebuild test … -only-testing:StudyUpTests/SyncIntegrationTests
 /// The simulator shares the Mac's network, so localhost reaches the server and counts as "this Mac".
 @MainActor
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["STUDYUP_SERVER"] != nil))
+// Serialized: the tests share a UserDefaults suite and Keychain item.
+@Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["STUDYUP_SERVER"] != nil))
 struct SyncIntegrationTests {
     let server = URL(string: ProcessInfo.processInfo.environment["STUDYUP_SERVER"] ?? "http://localhost:8799")!
     let container: ModelContainer
@@ -110,6 +111,33 @@ struct SyncIntegrationTests {
         await engine.sync(context: context)
         #expect(engine.status == .idle, "\(engine.status)")
         #expect(images.data(for: try #require(UUID(uuidString: macImage)))?.data == photo)
+    }
+
+    /// A restored or replaced Mac database is behind what the phone has seen. The Mac notices (the
+    /// phone's cursor is past its own) and changes its database id; the phone then syncs everything.
+    @Test func aReplacedMacDatabaseGetsAFullSync() async throws {
+        defer { engine.unpair() }
+        let folder = Folder(name: "Replaced \(UUID().uuidString.prefix(6))")
+        context.insert(folder)
+        let studied = Card(front: "Studied on the phone", back: "A")
+        context.insert(studied)
+        studied.folder = folder
+        studied.record(.good, fsrs: FSRS(), context: context, now: .now)
+        try await pairAndSync()
+        let defaults = UserDefaults(suiteName: "SyncIntegrationTests")!
+        let firstDatabase = try #require(defaults.string(forKey: "sync.databaseID"))
+        #expect(!studied.reviewLogs.isEmpty && studied.reviewLogs.allSatisfy(\.isSynced))
+
+        // Written on the Mac, but the phone's cursor says it has seen far more than the Mac has.
+        _ = try await api("POST", "api/cards", ["folderId": folder.syncID!.uuidString.lowercased(), "front": "Written on the Mac", "back": "B"])
+        defaults.set(10_000_000, forKey: "sync.cursor")
+        await engine.sync(context: context)
+
+        #expect(engine.status == .idle, "\(engine.status)")
+        #expect(defaults.string(forKey: "sync.databaseID") != firstDatabase)
+        #expect(folder.cards.map(\.front).sorted() == ["Studied on the phone", "Written on the Mac"])
+        #expect(defaults.integer(forKey: "sync.cursor") < 10_000_000)
+        #expect(!studied.reviewLogs.isEmpty && studied.reviewLogs.allSatisfy(\.isSynced))
     }
 
     @Test func wrongCodeIsRejected() async throws {

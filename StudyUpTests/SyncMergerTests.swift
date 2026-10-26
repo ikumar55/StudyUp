@@ -84,6 +84,17 @@ struct SyncMergerTests {
         #expect(fetchAll(Tombstone.self).isEmpty)
     }
 
+    @Test func markAllUnsentQueuesTheWholeHistoryAgain() {
+        let card = makeCard("Q", in: makeFolder("OS"))
+        card.record(.good, fsrs: FSRS(), context: context, now: at(10))
+        let sent = SyncMerger.pendingChanges(cursor: 0, since: .distantPast, context: context)
+        SyncMerger.markSent(sent, context: context)
+        #expect(SyncMerger.pendingChanges(cursor: 5, since: at(100), context: context).reviewLogs.isEmpty)
+
+        SyncMerger.markAllUnsent(context: context)
+        #expect(SyncMerger.pendingChanges(cursor: 0, since: .distantPast, context: context).reviewLogs.count == 1)
+    }
+
     @Test func markSentFlagsReviewLogs() {
         let card = makeCard("Q", in: makeFolder("OS"))
         card.record(.good, fsrs: FSRS(), context: context, now: at(10))

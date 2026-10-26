@@ -122,6 +122,18 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | Editing a card without changing anything: Cancel and swipe-down close it right away | |
 | [ ] | With the Mac asleep, study a few cards and lock the phone: the next reminder doesn't show a card you just answered | |
 
+## Phase 3.9: Mac safety and new cards that fit
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | After the Mac has been on for a day or two, `~/Library/Application Support/StudyUp/backups/` has one `studyup-<date>.db` per day | |
+| [ ] | The editor still works in Safari and Chrome: add, edit, move and delete cards and topics | |
+| [ ] | Home's "Today: N cards left" fits what today's reminders cover (Today screen); with 1 card a reminder and 8 reminders, at most 4 new cards start a day (fewer when reviews are due) | |
+| [ ] | Study now offers the same new cards the reminders would, not the full "new cards per day" | |
+| [ ] | After your last reminder of the day, Study now offers no new cards; they come tomorrow | |
+| [ ] | Raising cards per reminder (Settings) makes room for more new cards today | |
+| [ ] | Delete a card on the phone and sync: it disappears from the editor | |
+
 ## App icon
 
 | ✓ | Test | Notes |

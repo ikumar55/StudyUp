@@ -33,6 +33,7 @@ web/                         Mac web app (see web/README.md)
 ## How it fits together
 
 - **Scheduling.**
+  - New cards per day is a maximum: only as many start as today's remaining reminders can carry after what's due (`StudyQueue.newCardsForToday`). Use that, not `remainingNewCards`, anywhere that decides what to study.
   - FSRS-5, with learning steps sized for studying in reminders rather than sessions (`FSRS.defaultLearningSteps`): Wrong → 15 min, which lands in the **next reminder**; Right on a learning card → **3 hours**, a same-day check; Right again → graduates to days. Relearning after a lapse is 15 min.
   - Sessions show each card once (no in-session repeats). "Ready now" counts only cards that are actually due.
   - There are three grades: Wrong/Right/Easy, which are FSRS Again/Good/Easy.
@@ -46,9 +47,12 @@ web/                         Mac web app (see web/README.md)
   - Two databases: SwiftData on the phone, SQLite on the Mac at `~/Library/Application Support/StudyUp/`. They share UUIDs (`syncID`).
   - The phone always initiates with `POST /sync {cursor, changes}`; the Mac merges and returns what changed after the cursor.
   - Content: newest `updatedAt` wins per record. Progress: newest `progress.updatedAt` wins. It's normally written only by the phone; the web app's Review today and Reset progress also write it.
-  - Deletes travel as tombstones. Review logs are append-only and come back on a cursor-0 sync, which restores a reinstalled app.
+  - Deletes travel as tombstones; the Mac keeps a deleted record's text. Review logs are append-only and come back on a cursor-0 sync, which restores a reinstalled app.
+  - Edit times more than a day ahead of the Mac's clock are capped (`validate.ts`).
+  - Each response carries a `databaseId`. If it changes (the Mac's database was replaced), the phone does a full sync: cursor 0, everything sent, review logs marked unsent.
+  - The server keeps daily snapshots in `backups/` next to the database (14 kept), checkpoints the WAL after each sync, and closes the database on SIGTERM.
   - Pairing uses a 6-digit code shown in the editor, which gets a token stored in the iOS Keychain.
-  - The editor API is localhost-only; other devices can only reach `/pair`, `/sync` and `/images/*`, and only with the token.
+  - The editor API is localhost-only: the connection must come from this Mac, the `Host` must be localhost, changes need a localhost `Origin` (or none), and bodies must be JSON. Other devices can only reach `/pair`, `/sync` and `/images/*`, and only with the token. Request sizes are capped per route.
 - **Images.**
   - Card text refers to images as `![](image:<uuid>)`.
   - Files are stored next to each database and synced after cards: the phone uploads the images its cards use that the Mac lacks, then downloads the ones it lacks.

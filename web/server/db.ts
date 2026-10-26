@@ -8,6 +8,11 @@ export function defaultImagesDirectory(): string {
   return join(dirname(defaultDatabasePath()), 'images')
 }
 
+/** Daily snapshots of the database, e.g. ~/Library/Application Support/StudyUp/backups. */
+export function defaultBackupsDirectory(): string {
+  return join(dirname(defaultDatabasePath()), 'backups')
+}
+
 export function defaultDatabasePath(): string {
   return process.env.STUDYUP_DB ?? join(homedir(), 'Library', 'Application Support', 'StudyUp', 'studyup.db')
 }

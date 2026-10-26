@@ -50,7 +50,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Studying")
                 } footer: {
-                    Text("How many never-seen cards are introduced each day. Reviews of cards you've already seen are never capped.")
+                    Text("The most never-seen cards to start each day. Only as many start as your reminders have room for; the rest wait for another day. Reviews of cards you've already seen are never capped.")
                 }
                 Section {
                     VStack(alignment: .leading) {

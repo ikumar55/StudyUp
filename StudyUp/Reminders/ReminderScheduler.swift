@@ -135,10 +135,15 @@ final class ReminderScheduler {
         // As many days as fit in the pending-notification budget: 7 days at 8 a day, 3 at 20.
         let dayCount = min(Self.maxDaysAhead, max(2, Self.pendingBudget / max(settings.maxPerDay, 1)))
         let days = (0..<dayCount).map { offset in
-            (
-                calendar.date(byAdding: .day, value: offset, to: today)!,
-                offset == 0 ? StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context, now: now) : newCardsPerDay
+            let dayStart = calendar.date(byAdding: .day, value: offset, to: today)!
+            let isToday = offset == 0
+            // Only as many new cards as the day's reminders have room for; the rest wait.
+            let newLimit = StudyQueue.newCardsThatFit(
+                remaining: isToday ? StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context, now: now) : newCardsPerDay,
+                cards: cards, dayStart: dayStart, now: now, settings: settings,
+                alreadySent: isToday ? sentToday.count : 0, calendar: calendar
             )
+            return (dayStart, newLimit)
         }
 
         var planned: [(request: UNNotificationRequest, reminder: PlannedReminder)] = []

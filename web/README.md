@@ -2,7 +2,7 @@
 
 Write and organize flashcards in your browser. They sync to the StudyUp iPhone app over Wi-Fi.
 
-- **Server** (`server/`): Node + TypeScript (run directly by Node 24+, no build step) with a SQLite database at `~/Library/Application Support/StudyUp/studyup.db`. It serves the editor at http://localhost:8787 to this Mac only. Other devices on the network can only pair (`/pair`) and sync (`/sync`), and only with a token. It announces itself over Bonjour as `_studyup._tcp` so the phone can find it.
+- **Server** (`server/`): Node + TypeScript (run directly by Node 24+, no build step) with a SQLite database at `~/Library/Application Support/StudyUp/studyup.db` and a daily snapshot of it in `backups/` next to it (the last 14 days). It serves the editor at http://localhost:8787 to this Mac only. Other devices on the network can only pair (`/pair`) and sync (`/sync`), and only with a token. It announces itself over Bonjour as `_studyup._tcp` so the phone can find it.
 - **Editor** (`client/`): React + Vite.
 - **Shared types** (`shared/protocol.ts`): the sync format, mirrored in Swift by `StudyUp/Sync/SyncProtocol.swift`.
 

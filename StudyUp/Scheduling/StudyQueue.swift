@@ -96,4 +96,31 @@ enum StudyQueue {
     static func remainingNewCards(dailyLimit: Int, context: ModelContext, now: Date = .now) -> Int {
         max(dailyLimit - newCardsStudiedToday(context: context, now: now), 0)
     }
+
+    /// New cards to bring in on a day: up to `remaining` (what's left of the daily setting), but only
+    /// as many as that day's remaining reminders can carry after the cards already due. Each new card
+    /// takes two places, since it comes back for a check a few hours after it's first seen. The rest
+    /// wait for a day with room. With reminders off there's no reminder limit.
+    static func newCardsThatFit(
+        remaining: Int, cards: [Card], dayStart: Date, now: Date, settings: ReminderSettings,
+        alreadySent: Int = 0, calendar: Calendar = .current
+    ) -> Int {
+        guard settings.isEnabled else { return remaining }
+        let capacity = ReminderPlanner.capacity(dayStart: dayStart, now: now, settings: settings, alreadySent: alreadySent, calendar: calendar)
+        let alreadyDue = reminderCandidates(from: cards, dayStart: dayStart, newLimit: 0, calendar: calendar).count
+        return min(remaining, max(capacity - alreadyDue, 0) / 2)
+    }
+
+    /// Today's new cards, the same number everywhere: Home, Study now, and the reminder plan.
+    static func newCardsForToday(dailyLimit: Int, context: ModelContext, now: Date = .now) -> Int {
+        let remaining = remainingNewCards(dailyLimit: dailyLimit, context: context, now: now)
+        let scheduler = ReminderScheduler.shared
+        // Without permission to send reminders, they can't limit anything.
+        guard scheduler.canSchedule else { return remaining }
+        return newCardsThatFit(
+            remaining: remaining, cards: (try? context.fetch(FetchDescriptor<Card>())) ?? [],
+            dayStart: Calendar.current.startOfDay(for: now), now: now, settings: ReminderSettings.load(),
+            alreadySent: scheduler.sentToday.count
+        )
+    }
 }

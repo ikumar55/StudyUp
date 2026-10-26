@@ -3,29 +3,36 @@ import { InvalidRequestError } from './store.ts'
 
 // Checks and normalizes JSON from the network, so the store can trust its input.
 
-export function parseSyncRequest(body: unknown): SyncRequest {
+/** How far ahead of the Mac's clock an edit's time may be. Newest edit wins, so a time far in the
+ *  future (a phone with a wrong clock, or a forged request) would otherwise win every later edit. */
+export const MAX_CLOCK_AHEAD = 24 * 3_600_000
+
+export function parseSyncRequest(body: unknown, now = Date.now()): SyncRequest {
   const value = object(body, 'request')
+  const editTime = (input: unknown, label: string) => Math.min(time(input, label), now + MAX_CLOCK_AHEAD)
   return {
     cursor: integer(value.cursor, 'cursor'),
-    folders: array(value.folders, 'folders').map(parseFolder),
-    cards: array(value.cards, 'cards').map(parseCard),
+    folders: array(value.folders, 'folders').map((folder) => parseFolder(folder, editTime)),
+    cards: array(value.cards, 'cards').map((card) => parseCard(card, editTime)),
     reviewLogs: array(value.reviewLogs, 'reviewLogs').map(parseReviewLog),
   }
 }
 
-function parseFolder(input: unknown): FolderRecord {
+type EditTime = (input: unknown, label: string) => number
+
+function parseFolder(input: unknown, editTime: EditTime): FolderRecord {
   const value = object(input, 'folder')
   return {
     id: id(value.id),
     name: string(value.name, 'folder.name'),
     parentId: value.parentId === null || value.parentId === undefined ? null : id(value.parentId),
     createdAt: time(value.createdAt, 'folder.createdAt'),
-    updatedAt: time(value.updatedAt, 'folder.updatedAt'),
+    updatedAt: editTime(value.updatedAt, 'folder.updatedAt'),
     deleted: value.deleted === true,
   }
 }
 
-function parseCard(input: unknown): CardRecord {
+function parseCard(input: unknown, editTime: EditTime): CardRecord {
   const value = object(input, 'card')
   return {
     id: id(value.id),
@@ -33,13 +40,13 @@ function parseCard(input: unknown): CardRecord {
     front: string(value.front, 'card.front'),
     back: string(value.back, 'card.back'),
     createdAt: time(value.createdAt, 'card.createdAt'),
-    updatedAt: time(value.updatedAt, 'card.updatedAt'),
+    updatedAt: editTime(value.updatedAt, 'card.updatedAt'),
     deleted: value.deleted === true,
-    progress: value.progress === null || value.progress === undefined ? null : parseProgress(value.progress),
+    progress: value.progress === null || value.progress === undefined ? null : parseProgress(value.progress, editTime),
   }
 }
 
-function parseProgress(input: unknown): Progress {
+function parseProgress(input: unknown, editTime: EditTime): Progress {
   const value = object(input, 'progress')
   return {
     state: integer(value.state, 'progress.state'),
@@ -50,7 +57,7 @@ function parseProgress(input: unknown): Progress {
     reps: integer(value.reps, 'progress.reps'),
     lapses: integer(value.lapses, 'progress.lapses'),
     lastReview: value.lastReview === null || value.lastReview === undefined ? null : time(value.lastReview, 'progress.lastReview'),
-    updatedAt: time(value.updatedAt, 'progress.updatedAt'),
+    updatedAt: editTime(value.updatedAt, 'progress.updatedAt'),
   }
 }
 

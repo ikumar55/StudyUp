@@ -33,16 +33,9 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 ## Next up (as of 2026-10-26)
 
 1. **Test on the iPhone** using TESTING.md. Most features have only been checked on the simulator and the Mac.
-2. **Mac data safety and security** (found in the 2026-10-26 review; all small except the last):
-   - No automatic backups. The SQLite database is never checkpointed or closed, so nearly all data lives in `studyup.db-wal`. Add daily snapshots (keep ~14), checkpoint after syncs, and close the database on shutdown.
-   - A card deleted on the phone has its text blanked on the Mac (tombstones carry empty text), so the Mac can't recover it. Keep the text and only mark it deleted.
-   - Incoming timestamps have no upper bound: a phone clock running ahead wins every later edit. Clamp to now + 1 day.
-   - The editor API trusts only the remote address: a web page can reach it via DNS rebinding, and `text/plain` POSTs pass as JSON. Check `Host`/`Origin` and require JSON. Add body-size limits (`/pair` reads any size, unauthenticated).
-   - (M) A replaced or restored Mac database silently drifts from the phone. Add a database id to `/sync`; when it changes, the phone does a full resync. Needed before restore.
-3. **Today's new cards = what fits in today's reminders** (decided 2026-10-26). Reminders already give learning cards and reviews the slots first and new cards only the leftovers; new cards that don't fit wait for a later day without using up the allowance. But Home's "N cards left", the Today screen and Study now still count the full "new cards per day". Make them all use the same number: new cards up to the setting, but only as many as fit in today's reminders. More room comes from raising cards per reminder or reminders per day.
-4. **Restore from a backup.** Backups can be downloaded but not restored yet. A reinstalled app already gets everything back from the Mac on its first sync, so this matters most if the Mac's database is lost.
-5. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
-6. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
+2. **Restore from a backup.** The Mac now keeps daily snapshots (`backups/`) and the JSON download, but neither can be restored from the editor yet. A restore must give the database a new `databaseId`, so the phone sends everything it has. A reinstalled app already gets everything back from the Mac on its first sync, so this matters most if the Mac's database is lost.
+3. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
+4. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
 
 ## Phases
 
@@ -141,6 +134,15 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - [x] **Deleting a card asks first** (swipe or Delete Card), like folders
 - [x] **On going to the background, reminders are replanned before syncing,** so a slow or unreachable Mac can't stop the replan; if iOS runs out of time, the sync is cancelled cleanly
 
+### Phase 3.9: Mac data safety, security, and new cards that fit (2026-10-26)
+- [x] **Daily backups:** the server saves a complete snapshot of the database once a day to `~/Library/Application Support/StudyUp/backups/` (keeps 14). It also folds the write-ahead log into `studyup.db` after each sync and closes the database on shutdown, so the `.db` file alone is always complete
+- [x] **Deletes from the phone keep the card's text on the Mac** (only marked deleted), so a mistaken delete can be recovered later
+- [x] **Edit times more than a day ahead of the Mac's clock are capped**, so a wrong clock or forged request can't win every later edit
+- [x] **Editor API hardened:** requests must be addressed to localhost and, for changes, come from a localhost page (blocks DNS rebinding and cross-site posts); bodies must be JSON; request sizes are capped (16 KB for `/pair`, 15 MB for images, 64 MB for `/sync`, 1 MB otherwise)
+- [x] **Replaced Mac database → full sync:** `/sync` returns a `databaseId`. The Mac changes it when a phone's cursor is ahead of the database (an older copy was put back); the phone then sends everything, including review history, and receives everything
+- [x] **An edit that loses on the Mac goes back to the phone,** even if the phone had seen the Mac's version before (a phone clock running behind). Before, the phone kept its losing text for good. A phone delete that loses to a newer Mac edit brings the card back
+- [x] **New cards fit in the reminders:** today's new cards are the daily setting, but only as many as today's remaining reminders can carry after what's already due (two places each, for the same-day check). Home, the Today screen, Study now, Keep Going and the reminder plan all use this number; the rest wait for a day with room. With reminders off, just the setting
+
 ### Phase 4: Nice to have
 - [x] App icon (2026-10-26): two stacked cards with a rising line, matching the web editor's favicon; light, dark and tinted versions. Drawn by `scripts/make-app-icon.swift`
 - [ ] Home-screen widget showing the next due card
@@ -156,7 +158,7 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 **Scheduling**
 - **Upgrade to FSRS-6** (S). Two more weights: a trainable forgetting curve, and same-day reviews that help less once a card is well known. Much better at predicting same-day reviews, which are most of ours (benchmark log loss 0.46 → 0.38). Invisible in the UI; existing cards need no migration. The official [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) can check our numbers. FSRS-7 (two memory traces, built for same-day reviews) exists but isn't in a stable release yet; revisit when it is.
 - **Fuzz and load balancing** (S). Cards created together stay due on the same days forever (30 cards → all at 4, 14, 44 days). Add standard FSRS fuzz (seeded per card so button labels match), and pick the least busy day within the fuzz range, as Anki does.
-- **Keep Going past today's new cards** (S). Once new cards are limited to what fits in reminders (Next up #3), a session's Keep Going could offer a few extra new cards on days you want to study more. Their same-day checks would then compete for reminder slots.
+- **Keep Going past today's new cards** (S). Now that new cards are limited to what fits in reminders (Phase 3.9), a session's Keep Going could offer a few extra new cards on days you want to study more. Their same-day checks would then compete for reminder slots.
 - **Keep cloze siblings apart** (M). Cards from one cloze sentence give away each other's answers, and today they arrive in back-to-back reminders. Needs an optional `noteID` on cards (mirrored in `protocol.ts`), then at most one sibling per day.
 - **Cards that keep failing** (S). After ~6–8 lapses, stop putting the card in reminders and list it as "Cards to rewrite" in the web editor. `lapses` already syncs.
 - **Optimize FSRS weights on the Mac** (M; Phase 4 item). The Mac already has every review log. `@open-spaced-repetition/binding` runs the official optimizer in Node; send the weights to the phone as a synced record. Re-run when the review count doubles; no button.
@@ -182,12 +184,11 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 - **Multi-select** (M): ⇧/⌘-click several cards to move or delete them.
 - **Duplicate warning** (S): a hint when a new question matches an existing one.
 - **Confirm before discarding an inline edit** (S); Esc currently drops changes silently.
-- **"Recently deleted"** (M), once deletes keep their text (Next up #2).
+- **"Recently deleted"** (M): possible now that deletes from the phone keep their text on the Mac.
 
 **Known issues** (smaller, from the same review)
 - A card added or edited on the phone inside a folder deleted on the Mac (before the next sync) is lost on the phone.
 - An open study session or card editor can hold a card that a sync just deleted; a card graded from a notification while shown in a session gets graded twice.
-- An edit that loses the merge on the Mac isn't sent back, so the phone keeps its losing text (only with clock skew).
 - A crash-corrupted database leaves the server restarting every 10 s with no clear message.
 - Editor: a quick-add draft holding a pasted image, saved more than 7 days later, has a broken image; leftover `*.partial` image files are never cleaned up.
 - `npm start` / `npm run dev:server` default to the real database and port 8787.
@@ -200,7 +201,9 @@ Considered and skipped: streaks (pressure), typing the answer (too slow on a loc
 - **Split ownership avoids most conflicts.** *Content* (folder name and parent, card front and back, card folder) is editable on both sides, and the newest `updatedAt` wins per record. *Progress* (FSRS state and review logs) is written only by the phone and copied to the Mac, so it never conflicts.
 - Exception: the web app's Review today and Reset progress also write progress. That's safe because the newest `progress.updatedAt` wins on both sides.
 - **Protocol:** the phone sends `POST /sync { cursor, changes }`. The Mac applies the changes, then returns everything that changed after `cursor`, plus a new cursor. The cursor is a change sequence number on the Mac, so device clock skew only matters when the same card is edited on both sides between syncs.
-- **Deletes** are tombstones (`deletedAt`), so a delete on one side removes the record on the other instead of the next sync bringing it back.
+- **Deletes** are tombstones (`deletedAt`), so a delete on one side removes the record on the other instead of the next sync bringing it back. The Mac keeps a deleted record's text and only marks it deleted.
+- **Edit times** more than a day ahead of the Mac's clock are capped, since newest wins.
+- **Database id:** each `/sync` response names the Mac's database. If it changes (the Mac changes it when a phone's cursor is ahead of its own; a restore should too), the phone starts over: cursor 0, everything sent, review history marked unsent.
 - **Moving to the cloud later** means the same server and protocol over HTTPS, plus a login. The phone code doesn't change beyond the server address.
 
 ## Notification design notes

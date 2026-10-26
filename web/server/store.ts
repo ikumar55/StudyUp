@@ -28,6 +28,17 @@ export class Store {
   constructor(db: DatabaseSync, serverName = 'StudyUp') {
     this.#db = db
     this.serverName = serverName
+    if (!this.#meta('database_id')) this.#setMeta('database_id', randomUUID())
+  }
+
+  /** Identifies this database to the phone; see `SyncResponse.databaseId`. */
+  get databaseId(): string {
+    return this.#meta('database_id')!
+  }
+
+  /** Folds the write-ahead log into the main database file, so `studyup.db` alone holds everything. */
+  checkpoint(): void {
+    this.#db.exec('PRAGMA wal_checkpoint(TRUNCATE)')
   }
 
   // MARK: - Reading
@@ -162,13 +173,24 @@ export class Store {
    *  (in practice only the phone writes it). Review logs are append-only. */
   sync(request: SyncRequest): SyncResponse {
     return this.#transaction(() => {
+      // The phone has seen changes this database never had, so it was replaced (e.g. by an older
+      // copy). A new id tells the phone its cursor is meaningless and it should send everything.
+      if (request.cursor > this.#currentSeq()) this.#setMeta('database_id', randomUUID())
+
       // Records now identical to what the phone sent don't need to go back to it.
       const echoed = new Set<string>()
+      // Records where the Mac's copy beat the phone's go back even if the phone saw them before
+      // (e.g. its clock is behind), or it would keep its losing version.
+      const sendBack = { folders: new Set<string>(), cards: new Set<string>() }
 
       for (const incoming of request.folders) {
         const existing = this.#folders('WHERE id = ?', incoming.id)[0]
-        if (existing && incoming.updatedAt <= existing.updatedAt) continue
-        this.#writeFolder(incoming)
+        if (existing && incoming.updatedAt <= existing.updatedAt) {
+          if (differs(existing, incoming, ['name', 'parentId', 'deleted'])) sendBack.folders.add(existing.id)
+          continue
+        }
+        // A delete from the phone carries no name; keep the Mac's, so the record stays readable.
+        this.#writeFolder(incoming.deleted && existing ? { ...existing, deleted: true, updatedAt: incoming.updatedAt } : incoming)
         echoed.add(incoming.id)
         if (incoming.deleted) this.#cascadeDelete(incoming.id, incoming.updatedAt, { sparingNewerEdits: true })
       }
@@ -178,11 +200,21 @@ export class Store {
         const contentWins = !existing || incoming.updatedAt > existing.updatedAt
         const progressWins = incoming.progress !== null
           && (!existing?.progress || incoming.progress.updatedAt > existing.progress.updatedAt)
-        if (!contentWins && !progressWins) continue
-        const base = contentWins ? incoming : existing!
+        if (!contentWins && !progressWins) {
+          if (differs(existing!, incoming, ['front', 'back', 'folderId', 'deleted'])
+            || JSON.stringify(existing!.progress) !== JSON.stringify(incoming.progress ?? existing!.progress)) {
+            sendBack.cards.add(existing!.id)
+          }
+          continue
+        }
+        // A delete from the phone carries no text; keep the Mac's, so a mistaken delete can be recovered.
+        const deletion = contentWins && incoming.deleted && existing
+          ? { ...existing, deleted: true, updatedAt: incoming.updatedAt }
+          : undefined
+        const base = deletion ?? (contentWins ? incoming : existing!)
         const merged: CardRecord = { ...base, progress: progressWins ? incoming.progress : existing?.progress ?? null }
         this.#writeCard(merged)
-        if (JSON.stringify(merged) === JSON.stringify(incoming)) echoed.add(incoming.id)
+        if (deletion || JSON.stringify(merged) === JSON.stringify(incoming)) echoed.add(incoming.id)
       }
 
       const insertLog = this.#db.prepare(`
@@ -192,10 +224,15 @@ export class Store {
         insertLog.run(log.id, log.cardId, log.reviewedAt, log.rating, log.stateBefore, this.#nextSeq())
       }
 
+      const folders = this.#folders('WHERE seq > ? ORDER BY seq', request.cursor).filter((f) => !echoed.has(f.id))
+      const cards = this.#cards('WHERE seq > ? ORDER BY seq', request.cursor).filter((c) => !echoed.has(c.id))
+      for (const id of sendBack.folders) if (!folders.some((f) => f.id === id)) folders.push(this.folder(id)!)
+      for (const id of sendBack.cards) if (!cards.some((c) => c.id === id)) cards.push(this.card(id)!)
       return {
+        databaseId: this.databaseId,
         cursor: this.#currentSeq(),
-        folders: this.#folders('WHERE seq > ? ORDER BY seq', request.cursor).filter((f) => !echoed.has(f.id)),
-        cards: this.#cards('WHERE seq > ? ORDER BY seq', request.cursor).filter((c) => !echoed.has(c.id)),
+        folders,
+        cards,
         reviewLogs: request.cursor === 0 ? this.#reviewLogs('ORDER BY reviewed_at') : [],
       }
     })
@@ -251,15 +288,23 @@ export class Store {
     }
   }
 
+  #meta(key: string): string | undefined {
+    const row = this.#db.prepare('SELECT value FROM meta WHERE key = ?').get(key)
+    return row ? String(row.value) : undefined
+  }
+
+  #setMeta(key: string, value: string): void {
+    this.#db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value')
+      .run(key, value)
+  }
+
   #currentSeq(): number {
-    const row = this.#db.prepare("SELECT value FROM meta WHERE key = 'seq'").get()
-    return row ? Number(row.value) : 0
+    return Number(this.#meta('seq') ?? 0)
   }
 
   #nextSeq(): number {
     const next = this.#currentSeq() + 1
-    this.#db.prepare("INSERT INTO meta (key, value) VALUES ('seq', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value")
-      .run(String(next))
+    this.#setMeta('seq', String(next))
     return next
   }
 
@@ -362,6 +407,13 @@ function cardFromRow(row: Row): CardRecord {
     deleted: row.deleted === 1,
     progress: row.progress === null ? null : JSON.parse(String(row.progress)) as Progress,
   }
+}
+
+/** Whether two versions of a record differ in the given fields. Two deleted versions don't differ:
+ *  the phone has nothing to update. */
+function differs<T extends { deleted: boolean }>(a: T, b: T, fields: (keyof T)[]): boolean {
+  if (a.deleted && b.deleted) return false
+  return fields.some((field) => a[field] !== b[field])
 }
 
 function requireText(value: string, label: string): string {

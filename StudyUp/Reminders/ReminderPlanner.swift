@@ -28,6 +28,16 @@ nonisolated enum ReminderPlanner {
         return (0..<settings.maxPerDay).map { windowStart.addingTimeInterval(spacing * (Double($0) + 0.5)) }
     }
 
+    /// How many cards the day's reminders still ahead of `now` can carry, all told.
+    static func capacity(
+        dayStart: Date, now: Date, settings: ReminderSettings, alreadySent: Int = 0, calendar: Calendar = .current
+    ) -> Int {
+        guard settings.isEnabled else { return 0 }
+        let earliest = now.addingTimeInterval(minimumLeadTime)
+        let slotsLeft = slots(dayStart: dayStart, settings: settings, calendar: calendar).filter { $0 >= earliest }.count
+        return max(min(slotsLeft, settings.maxPerDay - alreadySent), 0) * max(settings.cardsPerReminder, 0)
+    }
+
     /// Picks which of the day's slots still ahead of `now` get a reminder, and the cards for each.
     /// - Parameters:
     ///   - candidates: Cards in study order; each card is covered by at most one reminder.

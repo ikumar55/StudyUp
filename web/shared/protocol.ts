@@ -60,6 +60,9 @@ export interface SyncRequest {
 
 /** Mac → iPhone: everything changed on the Mac after `cursor` that the phone doesn't already have. */
 export interface SyncResponse {
+  /** Identifies the Mac's database. If it changes (a restored backup, a new Mac), the phone's
+   *  cursor means nothing anymore, so the phone starts over with a full sync. */
+  databaseId: string
   cursor: number
   folders: FolderRecord[]
   cards: CardRecord[]

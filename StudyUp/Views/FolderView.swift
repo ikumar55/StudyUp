@@ -14,7 +14,7 @@ struct FolderView: View {
     @State private var cardToDelete: Card?
 
     var body: some View {
-        let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+        let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
         let cards = folder.cards.sorted { $0.createdAt > $1.createdAt }
         List {
             if !folder.allCards.isEmpty {

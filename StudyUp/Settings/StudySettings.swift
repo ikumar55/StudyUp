@@ -23,11 +23,11 @@ nonisolated enum StudySettings {
     }
 
     static func newCardsPerDay(_ defaults: UserDefaults = .standard) -> Int {
-        defaults.object(forKey: newCardsPerDayKey) as? Int ?? defaultNewCardsPerDay
+        defaults.object(forKey: newCardsPerDayKey) == nil ? defaultNewCardsPerDay : defaults.integer(forKey: newCardsPerDayKey)
     }
 
     static func desiredRetention(_ defaults: UserDefaults = .standard) -> Double {
-        defaults.object(forKey: desiredRetentionKey) as? Double ?? defaultDesiredRetention
+        defaults.object(forKey: desiredRetentionKey) == nil ? defaultDesiredRetention : defaults.double(forKey: desiredRetentionKey)
     }
 }
 
@@ -51,13 +51,16 @@ nonisolated struct ReminderSettings: Equatable, Sendable {
         calendar.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: day)!
     }
 
+    /// Uses `integer(forKey:)` and `bool(forKey:)` like @AppStorage does, so values given as launch
+    /// arguments (which arrive as text, e.g. `-cardsPerReminder 10` in UI tests) count too.
     static func load(_ defaults: UserDefaults = .standard) -> ReminderSettings {
         var settings = ReminderSettings()
-        if let value = defaults.object(forKey: StudySettings.remindersEnabledKey) as? Bool { settings.isEnabled = value }
-        if let value = defaults.object(forKey: StudySettings.reminderStartMinuteKey) as? Int { settings.startMinute = value }
-        if let value = defaults.object(forKey: StudySettings.reminderEndMinuteKey) as? Int { settings.endMinute = value }
-        if let value = defaults.object(forKey: StudySettings.remindersPerDayKey) as? Int { settings.maxPerDay = value }
-        if let value = defaults.object(forKey: StudySettings.cardsPerReminderKey) as? Int { settings.cardsPerReminder = value }
+        let has = { (key: String) in defaults.object(forKey: key) != nil }
+        if has(StudySettings.remindersEnabledKey) { settings.isEnabled = defaults.bool(forKey: StudySettings.remindersEnabledKey) }
+        if has(StudySettings.reminderStartMinuteKey) { settings.startMinute = defaults.integer(forKey: StudySettings.reminderStartMinuteKey) }
+        if has(StudySettings.reminderEndMinuteKey) { settings.endMinute = defaults.integer(forKey: StudySettings.reminderEndMinuteKey) }
+        if has(StudySettings.remindersPerDayKey) { settings.maxPerDay = defaults.integer(forKey: StudySettings.remindersPerDayKey) }
+        if has(StudySettings.cardsPerReminderKey) { settings.cardsPerReminder = defaults.integer(forKey: StudySettings.cardsPerReminderKey) }
         return settings
     }
 }

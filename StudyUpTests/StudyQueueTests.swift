@@ -96,6 +96,42 @@ struct StudyQueueTests {
         #expect(StudyQueue.remainingNewCards(dailyLimit: 10, context: context, now: now) == 9)
     }
 
+    // MARK: New cards that fit in reminders
+
+    /// `now` is midnight in Los Angeles; reminders 9:00–21:00, up to 8 a day, 1 card each.
+    private let losAngeles: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        return calendar
+    }()
+
+    private func newCardsThatFit(remaining: Int = 10, at hour: Double, reviewsDue: Int = 0, alreadySent: Int = 0, enabled: Bool = true) -> Int {
+        var settings = ReminderSettings()
+        settings.cardsPerReminder = 1
+        settings.isEnabled = enabled
+        let cards = (0..<reviewsDue).map { makeCard("review \($0)", state: .review, due: now) } + (0..<20).map { makeCard("new \($0)") }
+        return StudyQueue.newCardsThatFit(
+            remaining: remaining, cards: cards, dayStart: now, now: now.addingTimeInterval(hour * 3600),
+            settings: settings, alreadySent: alreadySent, calendar: losAngeles
+        )
+    }
+
+    @Test func newCardsFillTheRoomLeftInRemindersTwoPlacesEach() {
+        // 8 places, 2 taken by reviews: 3 new cards, each seen twice.
+        #expect(newCardsThatFit(at: 8, reviewsDue: 2) == 3)
+        #expect(newCardsThatFit(remaining: 2, at: 8) == 2, "never more than the daily setting")
+    }
+
+    @Test func noRoomLeftMeansNewCardsWait() {
+        #expect(newCardsThatFit(at: 22) == 0, "after the last reminder")
+        #expect(newCardsThatFit(at: 8, reviewsDue: 8) == 0, "reviews fill every reminder")
+        #expect(newCardsThatFit(at: 13, alreadySent: 6) == 1, "2 reminders left today")
+    }
+
+    @Test func withRemindersOffTheDailySettingApplies() {
+        #expect(newCardsThatFit(at: 22, enabled: false) == 10)
+    }
+
     @Test func aSessionShowsEachCardOnce() {
         let card = makeCard("new")
         let other = makeCard("other")

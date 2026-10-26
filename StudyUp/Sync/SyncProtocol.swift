@@ -51,6 +51,9 @@ nonisolated struct SyncRequest: Codable, Equatable, Sendable {
 }
 
 nonisolated struct SyncResponse: Codable, Equatable, Sendable {
+    /// Identifies the Mac's database. If it changes (a restored backup, a new Mac), the cursor means
+    /// nothing anymore, so the phone starts over with a full sync. Nil from servers before 2026-10-26.
+    var databaseId: String?
     var cursor: Int
     var folders: [FolderRecord]
     var cards: [CardRecord]

@@ -5,11 +5,21 @@ final class StudyUpUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// Launches with an empty in-memory library. New cards only start when today's reminders have room,
+    /// so these give reminders all day with plenty of room: tests don't then depend on the time of day,
+    /// or on the simulator's own settings (shared with manual use). Launch arguments don't persist.
+    private func launch(_ app: XCUIApplication, _ extra: [String] = []) {
+        app.launchArguments = [
+            "-inMemoryStore", "-reminderStartMinute", "0", "-reminderEndMinute", "1439",
+            "-remindersPerDay", "20", "-cardsPerReminder", "10", "-newCardsPerDay", "10",
+        ] + extra
+        app.launch()
+    }
+
     @MainActor
     func testStudyFlowWithSampleCards() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-inMemoryStore"]
-        app.launch()
+        launch(app)
         attachScreenshot("1-empty", app)
 
         app.buttons["Add Sample Cards"].tap()
@@ -41,8 +51,7 @@ final class StudyUpUITests: XCTestCase {
     func testTappingReminderOpensQuickReview() throws {
         let app = XCUIApplication()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        app.launchArguments = ["-inMemoryStore"]
-        app.launch()
+        launch(app)
         app.buttons["Add Sample Cards"].tap()
 
         // Grant notification permission the first time this simulator runs the app.
@@ -76,8 +85,7 @@ final class StudyUpUITests: XCTestCase {
     func testGradingFromReminderRecordsReview() throws {
         let app = XCUIApplication()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        app.launchArguments = ["-inMemoryStore"]
-        app.launch()
+        launch(app)
         app.buttons["Add Sample Cards"].tap()
         allowNotificationsIfAsked(app, springboard)
 
@@ -108,8 +116,7 @@ final class StudyUpUITests: XCTestCase {
     @MainActor
     func testRichCardShowsCodeAndImage() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-inMemoryStore", "-richCardSample"]
-        app.launch()
+        launch(app, ["-richCardSample"])
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Study now'")).firstMatch.tap()
         XCTAssertTrue(app.buttons["Show Answer"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["uint64_t cr3 = read_cr3(); // page table root"].exists)
@@ -129,8 +136,7 @@ final class StudyUpUITests: XCTestCase {
     func testTodayScheduleListsPlannedReminders() throws {
         let app = XCUIApplication()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        app.launchArguments = ["-inMemoryStore"]
-        app.launch()
+        launch(app)
         app.buttons["Add Sample Cards"].tap()
         allowNotificationsIfAsked(app, springboard)
 
@@ -155,8 +161,7 @@ final class StudyUpUITests: XCTestCase {
     @MainActor
     func testSyncScreenShowsPairingSteps() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-inMemoryStore"]
-        app.launch()
+        launch(app)
         app.buttons["Settings"].tap()
         attachScreenshot("11-settings-with-sync", app)
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Sync with Mac'")).firstMatch.tap()

@@ -30,7 +30,7 @@ final class StudySession: Identifiable {
         startingWith first: Card? = nil, limit: Int? = nil
     ) -> StudySession {
         let buildQueue = {
-            let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+            let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
             return StudyQueue.build(from: StudyQueue.cards(in: scope, context: context), newLimit: remainingNew)
         }
         var queue = buildQueue()
@@ -49,7 +49,7 @@ final class StudySession: Identifiable {
         title: String, cards: [Card], context: ModelContext, newCardsPerDay: Int, desiredRetention: Double
     ) -> StudySession {
         StudySession(title: title, cards: cards, fsrs: StudySettings.fsrs(desiredRetention: desiredRetention)) {
-            let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+            let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
             return StudyQueue.build(from: StudyQueue.cards(in: .all, context: context), newLimit: remainingNew)
         }
     }

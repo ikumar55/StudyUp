@@ -39,6 +39,14 @@ enum SyncMerger {
         }
     }
 
+    /// Marks every review log as not yet on the Mac, so the next sync sends the whole history again
+    /// (after the Mac's database was replaced).
+    static func markAllUnsent(context: ModelContext) {
+        for log in (try? context.fetch(FetchDescriptor<ReviewLog>())) ?? [] {
+            log.isSynced = false
+        }
+    }
+
     /// Applies the Mac's changes. Returns whether anything changed locally.
     @discardableResult
     static func apply(_ response: SyncResponse, context: ModelContext) -> Bool {

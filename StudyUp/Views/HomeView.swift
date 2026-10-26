@@ -17,7 +17,7 @@ struct HomeView: View {
     private let router = NotificationRouter.shared
 
     var body: some View {
-        let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+        let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
         NavigationStack {
             List {
                 if !allCards.isEmpty {
@@ -137,7 +137,7 @@ struct HomeView: View {
     private func openPendingReminder() {
         guard let tap = router.pendingReminder else { return }
         router.pendingReminder = nil
-        let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
+        let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
         let stillDue = Set(dueToday(remainingNew).map(ObjectIdentifier.init))
         let byID = Dictionary(allCards.compactMap { card in card.syncID.map { ($0, card) } }, uniquingKeysWith: { first, _ in first })
         let planned = tap.cardIDs.compactMap { byID[$0] }.filter { stillDue.contains(ObjectIdentifier($0)) }
