@@ -4,6 +4,7 @@ A personal spaced-repetition flashcard app built by and for one person, a new gr
 
 - **Read `PLAN.md` first.** It has the roadmap, the decisions made and why, design notes, and what's done (checkboxes).
 - **`TESTING.md`** is the running checklist of things to verify on the real iPhone. Add rows for every user-visible feature.
+- On screen, the app says **notification**, never "reminder" (changed 2026-10-26). Code and these docs still say "reminder" (`ReminderScheduler`, `ReminderPlanner`).
 - The user values **simplicity**: few numbers on screen, plain words ("later today", not "10m"), no extra buttons. They test on the simulator and their iPhone, then give UX feedback. Propose changes and confirm them before large redesigns.
 
 ## Repo layout
@@ -38,7 +39,8 @@ web/                         Mac web app (see web/README.md)
   - Sessions show each card once (no in-session repeats). "Ready now" counts only cards that are actually due.
   - There are three grades: Wrong/Right/Easy, which are FSRS Again/Good/Easy.
   - Scheduling fields are stored flat on `Card` so predicates can use them. `CardSchedule` + `FSRS` are pure and unit-tested.
-  - Answer labels come from `DueText` and are plain words ("next reminder", "in a few hours", "in 4 days"). The user cares a lot about these being clear.
+  - Intervals of 3+ days are fuzzed (`FSRS.fuzzed`), seeded by the card's sync id (`CardSchedule.fuzzSeed`) and review count, never the time, so previews (button and notification labels) match what grading does. Keep it that way: anything random in scheduling must be repeatable.
+  - Answer labels come from `DueText` and are plain words ("next notification", "in a few hours", "in 4 days"). The user cares a lot about these being clear.
 - **Reminders.**
   - iOS can't wake the app on demand, so `ReminderScheduler` plans up to 7 days of notifications ahead, within a 60-notification budget, and replans whenever the app opens or goes to the background, after sessions and settings changes, when the card count changes, and after a grade from a notification.
   - Each reminder carries its exact cards (`cardIDs` = sync ids). Tapping one opens a Quick Review of those cards.

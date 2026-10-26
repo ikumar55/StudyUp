@@ -19,7 +19,7 @@ A personal iOS app for **micro-studying through the day**. I write flashcards as
 |---|---|---|
 | Platform | Native iOS, SwiftUI, iOS 26.5+ | First-class notification APIs; matches the iPhone (26.5.2) |
 | Storage | SwiftData, on device | Built in; models are in `StudyUp/Models/Models.swift` |
-| Scheduler | FSRS-5 with learning steps of 15 min and 3 h (relearn 15 min) | FSRS is Anki's current default. The steps were changed on 2026-10-26 from Anki's 1m/10m to suit studying in short reminders: Wrong → next reminder, Right → a same-day check |
+| Scheduler | FSRS-5 with learning steps of 15 min and 3 h (relearn 15 min) | FSRS is Anki's current default. The steps were changed on 2026-10-26 from Anki's 1m/10m to suit studying in short reminders: Wrong → next reminder, Right → a same-day check. Day-scale intervals get Anki's fuzz (2026-10-26) |
 | Grading | Wrong / Right / Easy (FSRS Again / Good / Easy) | Chosen 2026-10-19; "Hard" adds little |
 | Apple account | Free (Personal Team) | No $99/yr. The app must be reinstalled from Xcode every 7 days. No iCloud/CloudKit, and App Groups may not be available |
 | Writing cards on the Mac | Local web app on the Mac (TypeScript: React UI + Node server + SQLite) that syncs with the phone over Wi-Fi (phase 3) | Chosen 2026-10-20 over a phone-hosted editor: you can write anytime, the Mac keeps a backup, and it can move to the cloud later by hosting the same server |
@@ -143,6 +143,15 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - [x] **An edit that loses on the Mac goes back to the phone,** even if the phone had seen the Mac's version before (a phone clock running behind). Before, the phone kept its losing text for good. A phone delete that loses to a newer Mac edit brings the card back
 - [x] **New cards fit in the reminders:** today's new cards are the daily setting, but only as many as today's remaining reminders can carry after what's already due (two places each, for the same-day check). Home, the Today screen, Study now, Keep Going and the reminder plan all use this number; the rest wait for a day with room. With reminders off, just the setting
 
+### Phase 3.10: Interval fuzz (2026-10-26)
+- [x] Intervals of 3 days or more move a little earlier or later, by Anki's ranges (4 days → 3–5, 14 → 12–16, Easy's 16 → 13–19, 44 → 40–48), so cards learned together don't keep coming due on the same days. Learning steps and 1–2 day intervals are unchanged; so are the FSRS-5 formulas and weights
+- [x] The nudge comes from the card's sync id and review count (not the time), so the label on a button or notification always matches what grading does
+
+### Phase 3.11: "Notifications" wording (2026-10-26)
+- [x] On screen, "reminder" is now "notification" everywhere (Settings, Home, Today, the card editor, the Wrong button's "next notification"); the code keeps its names
+- [x] Home's second line reads on from the first: "Today: 3 cards left / Over 2 notifications · next at 5:15 PM" ("Next notification at …" when one is left)
+- [x] When a notification arrives while the app is open, the app replans right away, so Home shows the next time and Today moves the delivered one to "Earlier today" (they used to stay stale until the app replanned for another reason). Times that have passed are never shown as upcoming
+
 ### Phase 4: Nice to have
 - [x] App icon (2026-10-26): two stacked cards with a rising line, matching the web editor's favicon; light, dark and tinted versions. Drawn by `scripts/make-app-icon.swift`
 - [ ] Home-screen widget showing the next due card
@@ -156,8 +165,8 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repetition research and other apps). Not committed to; pick from here. Sizes: S small, M medium, L large.
 
 **Scheduling**
-- **Upgrade to FSRS-6** (S). Two more weights: a trainable forgetting curve, and same-day reviews that help less once a card is well known. Much better at predicting same-day reviews, which are most of ours (benchmark log loss 0.46 → 0.38). Invisible in the UI; existing cards need no migration. The official [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) can check our numbers. FSRS-7 (two memory traces, built for same-day reviews) exists but isn't in a stable release yet; revisit when it is.
-- **Fuzz and load balancing** (S). Cards created together stay due on the same days forever (30 cards → all at 4, 14, 44 days). Add standard FSRS fuzz (seeded per card so button labels match), and pick the least busy day within the fuzz range, as Anki does.
+- **Upgrade to FSRS-6, together with optimizing weights** (S + M). Two more weights: a trainable forgetting curve, and same-day reviews that help less once a card is well known. Its benchmark gains (log loss 0.46 → 0.38 with same-day reviews) come mostly from weights fitted to your own history; with default weights it mostly changes the day-gaps (4 → 14 → 44, Easy's 16) rather than clearly improving them. So do it with the optimizer below, after a few hundred reviews. Decided 2026-10-26 to keep FSRS-5 until then. The official [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) can check our numbers. FSRS-7 (two memory traces, built for same-day reviews) exists but isn't in a stable release yet.
+- **Load balancing** (S–M). Fuzz (Phase 3.10) already spreads cards across nearby days; load balancing would pick the least busy day within the fuzz range, as Anki does since 24.11. It needs every card's due date when computing button labels (in sessions and when planning notifications), so it's more code. Worth it if some days feel crowded.
 - **Keep Going past today's new cards** (S). Now that new cards are limited to what fits in reminders (Phase 3.9), a session's Keep Going could offer a few extra new cards on days you want to study more. Their same-day checks would then compete for reminder slots.
 - **Keep cloze siblings apart** (M). Cards from one cloze sentence give away each other's answers, and today they arrive in back-to-back reminders. Needs an optional `noteID` on cards (mirrored in `protocol.ts`), then at most one sibling per day.
 - **Cards that keep failing** (S). After ~6–8 lapses, stop putting the card in reminders and list it as "Cards to rewrite" in the web editor. `lapses` already syncs.
@@ -168,7 +177,7 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 - **Ease off when reminders are ignored** (S–M). If the last few got no answer and no app open, space the next ones further apart; back to normal after any answer. No guilt messages.
 - **"Show Answer" button on the notification** (S–M). Sends the answer as a follow-up notification with the grade buttons, so it works on an Apple Watch and without a long-press.
 - **Reminder hours past midnight, and a 4 AM day boundary** (M). "Until 1:00 AM" currently turns reminders off entirely, and a 00:30 session counts toward the next day.
-- **Home says why there are no reminders** (S). With notifications denied in iOS Settings, Home says "Reminders are off" although the toggle is on.
+- **Home says why there are no reminders** (S). With notifications denied in iOS Settings, Home says "Notifications are off" although the toggle is on.
 
 **iPhone app**
 - **New Card from Home** (S–M). Adding a card takes Home → topic → folder → + → New Card. A Home button (last-used folder, with a folder picker in the editor) plus a long-press app-icon shortcut.

@@ -25,6 +25,13 @@ nonisolated struct CardSchedule: Equatable, Sendable {
     var reps: Int = 0
     var lapses: Int = 0
     var lastReview: Date?
+    /// Picks this card's interval fuzz (see `FSRS.fuzzed`). Nil means no fuzz.
+    var fuzzSeed: UInt64?
+
+    /// A card's fuzz seed, from its sync id: stable for the card's lifetime, different between cards.
+    static func fuzzSeed(for id: UUID) -> UInt64 {
+        withUnsafeBytes(of: id.uuid) { $0.loadUnaligned(as: UInt64.self) }
+    }
 }
 
 /// FSRS-5 (Free Spaced Repetition Scheduler), the algorithm Anki uses by default.
@@ -95,6 +102,36 @@ nonisolated struct FSRS: Sendable {
         return min(max(Int(raw.rounded()), 1), maximumIntervalDays)
     }
 
+    // MARK: - Fuzz
+
+    /// How far an interval may move, as Anki and the FSRS reference schedulers do it: a day, plus 15% of
+    /// the part between 2.5 and 7 days, 10% of the part between 7 and 20, and 5% beyond.
+    private static let fuzzRanges: [(start: Double, end: Double, factor: Double)] = [
+        (2.5, 7, 0.15), (7, 20, 0.1), (20, .infinity, 0.05),
+    ]
+
+    /// Nudges an interval of 3 days or more a little earlier or later (4 days → 3–5, 14 → 12–16,
+    /// 44 → 40–48), so cards learned together don't keep coming due on the same days. The nudge comes
+    /// from the card's seed and review count, not the time, so the label on a button (shown before
+    /// grading) always matches what grading does.
+    static func fuzzed(_ days: Int, seed: UInt64?, reps: Int, maximum: Int) -> Int {
+        guard let seed, Double(days) >= 2.5 else { return days }
+        let interval = Double(days)
+        let delta = fuzzRanges.reduce(1.0) { $0 + $1.factor * max(min(interval, $1.end) - $1.start, 0) }
+        let high = min(Int((interval + delta).rounded()), maximum)
+        let low = min(max(2, Int((interval - delta).rounded())), high)
+        let fraction = Double(splitMix(seed &+ UInt64(reps) &* 0x9E37_79B9_7F4A_7C15) >> 11) / Double(1 << 53)
+        return min(low + Int(fraction * Double(high - low + 1)), high)
+    }
+
+    /// A well-mixed 64-bit hash (SplitMix64), so nearby seeds and review counts give unrelated nudges.
+    private static func splitMix(_ value: UInt64) -> UInt64 {
+        var z = value &+ 0x9E37_79B9_7F4A_7C15
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
+    }
+
     // MARK: - Scheduling
 
     private func schedule(_ card: CardSchedule, rating: Rating, now: Date) -> CardSchedule {
@@ -106,7 +143,10 @@ nonisolated struct FSRS: Sendable {
         func graduate() {
             next.state = .review
             next.step = 0
-            next.due = now.addingTimeInterval(TimeInterval(intervalDays(stability: next.stability)) * Self.secondsPerDay)
+            let days = Self.fuzzed(
+                intervalDays(stability: next.stability), seed: card.fuzzSeed, reps: card.reps, maximum: maximumIntervalDays
+            )
+            next.due = now.addingTimeInterval(TimeInterval(days) * Self.secondsPerDay)
         }
 
         func enterStep(_ step: Int, of steps: [TimeInterval], as state: CardState) {

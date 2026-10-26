@@ -125,6 +125,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) {
         Task { @MainActor in
             completionHandler(NotificationRouter.shared.isStudying ? [.list] : [.banner, .list, .sound])
+            // The app is open, so nothing else would update it: move this one to "Earlier today",
+            // show the next time on Home, and fold any cards it covered back into the plan.
+            ReminderScheduler.shared.reschedule(context: Persistence.container.mainContext)
         }
     }
 

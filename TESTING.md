@@ -28,22 +28,22 @@ Automated tests run on the simulator: `xcodebuild test … -parallel-testing-ena
 
 | ✓ | Test | Notes |
 |---|---|---|
-| [ ] | The home screen offers "Turn On Study Reminders", and the iOS permission prompt appears | |
+| [ ] | The home screen offers "Turn On Study Notifications", and the iOS permission prompt appears | |
 | [ ] | Home shows "Next reminder today at …" after allowing notifications | |
-| [ ] | Settings → Send a Test Reminder arrives about 5 seconds later, **with the phone locked** | |
+| [ ] | Settings → Send a Test Notification arrives about 5 seconds later, **with the phone locked** | |
 | [ ] | Tapping a reminder opens Quick Review starting with **that** card | |
-| [ ] | Quick Review stops after "cards per reminder", and Keep Going continues | |
+| [ ] | Quick Review stops after "cards per notification", and Keep Going continues | |
 | [ ] | **Long-press** a reminder: the answer appears, and the buttons say when the card comes back ("Right · in a few hours") | |
 | [ ] | Grading from the long-press **without opening the app**, then opening the app, shows the card as reviewed | |
 | [ ] | Grading from a notification while the phone is **locked** works (may ask for Face ID) | |
 | [ ] | Tap a reminder while a card editor is open **with nothing typed**: the editor closes and Quick Review opens | |
-| [ ] | Tap a reminder while **writing** a card: the editor stays, with a note that the reminder's cards open when you're done; after Add (or Cancel → Discard), Quick Review opens | |
+| [ ] | Tap a reminder while **writing** a card: the editor stays, with a note that the notification's cards open when you're done; after Add (or Cancel → Discard), Quick Review opens | |
 | [ ] | Review a card in the app; any old notification for that card disappears from Notification Center | |
 | [ ] | Real reminders arrive spread across the active hours (default 9 AM – 9 PM), not bunched together | |
 | [ ] | No reminders arrive outside active hours | |
 | [ ] | No reminders arrive when nothing is due | |
 | [ ] | Reminders keep coming for several days **without opening the app** | |
-| [ ] | Turning "Study reminders" off in Settings stops them | |
+| [ ] | Turning "Study notifications" off in Settings stops them | |
 
 ## Phase 3: Mac web app and sync
 
@@ -91,7 +91,7 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | ✓ | Test | Notes |
 |---|---|---|
 | [ ] | The card editor no longer has "Add and Start Next Card"; Add saves and closes | |
-| [ ] | Study buttons say: Wrong · "next reminder", Right on a new card · "in a few hours", Right on a learned card · "in N days" | |
+| [ ] | Study buttons say: Wrong · "next notification", Right on a new card · "in a few hours", Right on a learned card · "in N days" | |
 | [ ] | Long-press notification buttons use the same wording | |
 | [ ] | Home: "Today: N cards left" goes down as you answer, and back up when you get one wrong | |
 | [ ] | Home → Today lists upcoming reminders with their cards; earlier ones show as sent | |
@@ -133,6 +133,21 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | After your last reminder of the day, Study now offers no new cards; they come tomorrow | |
 | [ ] | Raising cards per reminder (Settings) makes room for more new cards today | |
 | [ ] | Delete a card on the phone and sync: it disappears from the editor | |
+
+## Phase 3.10: Interval fuzz
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Cards learned on the same day don't all come back on the same day: their next reviews spread over a few days (e.g. 3–5 days later instead of all at 4) | |
+| [ ] | When a button or notification says "in 5 days", the card really comes back 5 days later (check its status in the card editor) | |
+
+## Phase 3.11: "Notifications" wording
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Home under "Today: N cards left" reads "Over 2 notifications · next at 5:15 PM" (or "Next notification at …" when one is left) | |
+| [ ] | The app says "notification" everywhere: Settings section and toggle, "cards per notification", Send a Test Notification, the Wrong button's "next notification", the Today screen | |
+| [ ] | With the app open on Home or Today when a notification arrives: Home moves on to the next time, and Today moves it to "Earlier today" | |
 
 ## App icon
 

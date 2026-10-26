@@ -42,7 +42,7 @@ struct HomeView: View {
                 }
                 if !allCards.isEmpty, remindersEnabled, scheduler.authorizationStatus == .notDetermined {
                     Section {
-                        Button("Turn On Study Reminders", systemImage: "bell.badge") {
+                        Button("Turn On Study Notifications", systemImage: "bell.badge") {
                             Task {
                                 await scheduler.requestAuthorization()
                                 scheduler.reschedule(context: context)

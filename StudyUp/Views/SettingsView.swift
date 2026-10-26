@@ -35,14 +35,14 @@ struct SettingsView: View {
                 remindersSection
                 if remindersEnabled, scheduler.canSchedule || scheduler.authorizationStatus == .notDetermined {
                     Section {
-                        Button("Send a Test Reminder", systemImage: "bell") {
+                        Button("Send a Test Notification", systemImage: "bell") {
                             Task {
                                 let sent = await scheduler.sendTestReminder(context: context)
                                 testReminderMessage = sent ? "Sent. It arrives in 5 seconds." : "Add a card first."
                             }
                         }
                     } footer: {
-                        Text(testReminderMessage ?? "Sends one reminder in 5 seconds so you can try tapping it.")
+                        Text(testReminderMessage ?? "Sends one notification in 5 seconds so you can try tapping it.")
                     }
                 }
                 Section {
@@ -50,7 +50,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Studying")
                 } footer: {
-                    Text("The most never-seen cards to start each day. Only as many start as your reminders have room for; the rest wait for another day. Reviews of cards you've already seen are never capped.")
+                    Text("The most never-seen cards to start each day. Only as many start as your notifications have room for; the rest wait for another day. Reviews of cards you've already seen are never capped.")
                 }
                 Section {
                     VStack(alignment: .leading) {
@@ -81,13 +81,13 @@ struct SettingsView: View {
 
     private var remindersSection: some View {
         Section {
-            Toggle("Study reminders", isOn: $remindersEnabled)
+            Toggle("Study notifications", isOn: $remindersEnabled)
             if remindersEnabled {
                 DatePicker("From", selection: timeOfDay($startMinute), displayedComponents: .hourAndMinute)
                 DatePicker("Until", selection: timeOfDay($endMinute), displayedComponents: .hourAndMinute)
                 Stepper("Up to \(remindersPerDay) a day", value: $remindersPerDay, in: 1...20)
                 Stepper(
-                    "\(cardsPerReminder) \(cardsPerReminder == 1 ? "card" : "cards") per reminder",
+                    "\(cardsPerReminder) \(cardsPerReminder == 1 ? "card" : "cards") per notification",
                     value: $cardsPerReminder, in: 1...10
                 )
             }
@@ -97,7 +97,7 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text("Reminders")
+            Text("Notifications")
         } footer: {
             Text(remindersFooter)
         }
@@ -105,12 +105,12 @@ struct SettingsView: View {
 
     private var remindersFooter: String {
         if scheduler.authorizationStatus == .denied {
-            return "Notifications are turned off for StudyUp, so no reminders will be sent."
+            return "Notifications are turned off for StudyUp in iOS Settings, so none will be sent."
         }
         if remindersEnabled, endMinute <= startMinute {
             return "The end time must be after the start time."
         }
-        return "Reminders are spread across these hours and only sent when cards are due."
+        return "Notifications are spread across these hours and only sent when cards are due."
     }
 
     /// Bridges minutes-after-midnight storage to a time picker.

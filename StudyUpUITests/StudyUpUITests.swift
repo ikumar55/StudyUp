@@ -55,19 +55,20 @@ final class StudyUpUITests: XCTestCase {
         app.buttons["Add Sample Cards"].tap()
 
         // Grant notification permission the first time this simulator runs the app.
-        let turnOn = app.buttons["Turn On Study Reminders"]
+        let turnOn = app.buttons["Turn On Study Notifications"]
         if turnOn.waitForExistence(timeout: 3) {
             turnOn.tap()
             let allow = springboard.alerts.buttons["Allow"]
             if allow.waitForExistence(timeout: 5) { allow.tap() }
         }
-        let today = app.buttons.matching(NSPredicate(format: "label CONTAINS 'next at'")).firstMatch
+        // "Over 2 notifications · next at …", or "Next notification at …" when one is left.
+        let today = app.buttons.matching(NSPredicate(format: "label CONTAINS 'next at' OR label CONTAINS 'Next notification at'")).firstMatch
         XCTAssertTrue(today.waitForExistence(timeout: 5))
         attachScreenshot("6-home-with-reminders", app)
 
         app.buttons["Settings"].tap()
         attachScreenshot("7-settings", app)
-        app.buttons["Send a Test Reminder"].tap()
+        app.buttons["Send a Test Notification"].tap()
 
         // The test reminder shows the first sample card's question.
         let banner = springboard.descendants(matching: .any)
@@ -94,7 +95,7 @@ final class StudyUpUITests: XCTestCase {
         XCTAssertTrue(studyNow.label.contains("7 new"), studyNow.label)
 
         app.buttons["Settings"].tap()
-        app.buttons["Send a Test Reminder"].tap()
+        app.buttons["Send a Test Notification"].tap()
         app.buttons["Done"].tap()
 
         let banner = springboard.descendants(matching: .any)
@@ -172,7 +173,7 @@ final class StudyUpUITests: XCTestCase {
     }
 
     private func allowNotificationsIfAsked(_ app: XCUIApplication, _ springboard: XCUIApplication) {
-        let turnOn = app.buttons["Turn On Study Reminders"]
+        let turnOn = app.buttons["Turn On Study Notifications"]
         if turnOn.waitForExistence(timeout: 3) {
             turnOn.tap()
             let allow = springboard.alerts.buttons["Allow"]

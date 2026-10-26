@@ -32,7 +32,7 @@ struct StudyButtonRow: View {
     }
 }
 
-/// "Today: 8 cards left" with when the next reminder is. Opens today's schedule.
+/// "Today: 8 cards left" with when the next notification is. Opens today's schedule.
 struct TodaySummaryRow: View {
     let cardsLeft: Int
     let upcoming: [PlannedReminder]
@@ -57,15 +57,16 @@ struct TodaySummaryRow: View {
     }
 
     private var detail: String {
-        guard remindersEnabled else { return "Reminders are off" }
+        guard remindersEnabled else { return "Notifications are off" }
         if let next = upcoming.first {
-            let count = upcoming.count
-            return "\(count) \(count == 1 ? "reminder" : "reminders") left · next at \(next.fireDate.formatted(date: .omitted, time: .shortened))"
+            // Reads on from the line above: "Today: 3 cards left / Over 2 notifications · next at 5:15 PM".
+            let time = next.fireDate.formatted(date: .omitted, time: .shortened)
+            return upcoming.count == 1 ? "Next notification at \(time)" : "Over \(upcoming.count) notifications · next at \(time)"
         }
         if let nextReminder, !Calendar.current.isDateInToday(nextReminder) {
-            return "No more reminders today · next \(Calendar.current.isDateInTomorrow(nextReminder) ? "tomorrow" : nextReminder.formatted(.dateTime.weekday())) at \(nextReminder.formatted(date: .omitted, time: .shortened))"
+            return "No more notifications today · next \(Calendar.current.isDateInTomorrow(nextReminder) ? "tomorrow" : nextReminder.formatted(.dateTime.weekday())) at \(nextReminder.formatted(date: .omitted, time: .shortened))"
         }
-        return "No more reminders today"
+        return "No more notifications today"
     }
 }
 

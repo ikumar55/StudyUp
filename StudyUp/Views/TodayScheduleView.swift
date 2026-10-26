@@ -12,7 +12,7 @@ struct TodayScheduleView: View {
         List {
             Section {
                 if scheduler.upcomingToday.isEmpty {
-                    Text(remindersEnabled ? "No more reminders today." : "Reminders are off. Turn them on in Settings.")
+                    Text(remindersEnabled ? "No more notifications today." : "Notifications are off. Turn them on in Settings.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(scheduler.upcomingToday) { reminder in

@@ -118,6 +118,56 @@ struct FSRSTests {
     @Test func retrievabilityAtStabilityIsNinetyPercent() {
         #expect(abs(fsrs.retrievability(elapsedDays: 7, stability: 7) - 0.9) < 1e-9)
     }
+
+    // MARK: Fuzz
+
+    /// Fuzzed intervals for many different cards.
+    private func fuzzedForManyCards(_ days: Int, reps: Int = 2) -> Set<Int> {
+        Set((0..<500).map { _ in FSRS.fuzzed(days, seed: CardSchedule.fuzzSeed(for: UUID()), reps: reps, maximum: 36_500) })
+    }
+
+    @Test func fuzzStaysWithinAnkisRanges() {
+        #expect(fuzzedForManyCards(4) == [3, 4, 5])
+        #expect(fuzzedForManyCards(14) == Set(12...16))
+        #expect(fuzzedForManyCards(16) == Set(13...19))
+        #expect(fuzzedForManyCards(44) == Set(40...48))
+    }
+
+    @Test func shortIntervalsAndUnseededCardsAreNotFuzzed() {
+        #expect(fuzzedForManyCards(1) == [1])
+        #expect(fuzzedForManyCards(2) == [2])
+        #expect(FSRS.fuzzed(44, seed: nil, reps: 2, maximum: 36_500) == 44)
+        #expect(FSRS.fuzzed(44, seed: 7, reps: 2, maximum: 42) <= 42)
+    }
+
+    @Test func fuzzIsFixedPerCardAndReview() {
+        let seed = CardSchedule.fuzzSeed(for: UUID())
+        #expect(FSRS.fuzzed(44, seed: seed, reps: 3, maximum: 36_500) == FSRS.fuzzed(44, seed: seed, reps: 3, maximum: 36_500))
+        // Each review of a card gets its own nudge.
+        let byReview = Set((0..<50).map { FSRS.fuzzed(44, seed: seed, reps: $0, maximum: 36_500) })
+        #expect(byReview.count > 1)
+    }
+
+    @Test func cardsLearnedTogetherComeDueOnDifferentDays() {
+        let graduations = (0..<30).map { _ in
+            var card = newCard()
+            card.fuzzSeed = CardSchedule.fuzzSeed(for: UUID())
+            return fsrs.review(card, rating: .easy, now: start).due
+        }
+        #expect(Set(graduations).count > 1)
+        #expect(graduations.allSatisfy { $0 >= start.addingTimeInterval(13 * day) && $0 <= start.addingTimeInterval(19 * day) })
+    }
+
+    @Test func theButtonLabelMatchesWhatGradingDoes() {
+        var card = graduated().card
+        card.fuzzSeed = CardSchedule.fuzzSeed(for: UUID())
+        let shownAt = card.due
+        let previews = fsrs.preview(card, now: shownAt)
+        for rating in Rating.allCases {
+            #expect(fsrs.review(card, rating: rating, now: shownAt) == previews[rating])
+        }
+        #expect(previews[.easy]!.due > previews[.good]!.due)
+    }
 }
 
 @MainActor
@@ -168,7 +218,7 @@ struct DueTextTests {
 
     @Test func sameDayDependsOnTheAnswer() {
         let morning = calendar.startOfDay(for: now).addingTimeInterval(9 * 3600)
-        #expect(DueText.next(morning.addingTimeInterval(15 * 60), from: morning, rating: .again, calendar: calendar) == "next reminder")
+        #expect(DueText.next(morning.addingTimeInterval(15 * 60), from: morning, rating: .again, calendar: calendar) == "next notification")
         #expect(DueText.next(morning.addingTimeInterval(3 * 3600), from: morning, rating: .good, calendar: calendar) == "in a few hours")
         // A card's status, rather than an answer, just says it's later today.
         #expect(DueText.next(morning.addingTimeInterval(3 * 3600), from: morning, calendar: calendar) == "later today")
@@ -178,7 +228,7 @@ struct DueTextTests {
         let evening = calendar.startOfDay(for: now).addingTimeInterval(20 * 3600)
         let reminderEnd = calendar.startOfDay(for: now).addingTimeInterval(21 * 3600)
         #expect(DueText.next(evening.addingTimeInterval(3 * 3600 - 60), from: evening, rating: .good, reminderEnd: reminderEnd, calendar: calendar) == "tomorrow")
-        #expect(DueText.next(evening.addingTimeInterval(15 * 60), from: evening, rating: .again, reminderEnd: reminderEnd, calendar: calendar) == "next reminder")
+        #expect(DueText.next(evening.addingTimeInterval(15 * 60), from: evening, rating: .again, reminderEnd: reminderEnd, calendar: calendar) == "next notification")
     }
 
     @Test func daysWeeksMonthsYears() {

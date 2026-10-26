@@ -52,7 +52,7 @@ struct CardEditorView: View {
             Form {
                 if presenter.queuedSession != nil {
                     Section {
-                        Label("Your reminder's cards open when you're done with this one.", systemImage: "bell")
+                        Label("Your notification's cards open when you're done with this one.", systemImage: "bell")
                             .foregroundStyle(.secondary)
                     }
                 }

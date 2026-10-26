@@ -1,7 +1,7 @@
 import SwiftUI
 
 nonisolated enum DueText {
-    /// When a card comes back, in plain words. For an answer: Wrong → "next reminder"; a same-day check
+    /// When a card comes back, in plain words. For an answer: Wrong → "next notification"; a same-day check
     /// → "in a few hours" (or "tomorrow" if that's after `reminderEnd`); otherwise "tomorrow",
     /// "in 4 days", "in 3 weeks", "in 2 months", "in 1.5 years". Without a rating (a card's status)
     /// a same-day time reads "later today". Exact minutes and hours don't matter to the person studying.
@@ -10,7 +10,7 @@ nonisolated enum DueText {
     ) -> String {
         let sameDay = due <= now || calendar.isDate(due, inSameDayAs: now)
         if rating == .again, sameDay || due < calendar.startOfDay(for: now).addingTimeInterval(2 * 86_400) {
-            return "next reminder"
+            return "next notification"
         }
         if sameDay {
             if let reminderEnd, due > reminderEnd { return "tomorrow" }

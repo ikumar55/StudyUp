@@ -96,7 +96,8 @@ final class Card {
         get {
             CardSchedule(
                 state: state, due: due, stability: stability, difficulty: difficulty,
-                step: step, reps: reps, lapses: lapses, lastReview: lastReview
+                step: step, reps: reps, lapses: lapses, lastReview: lastReview,
+                fuzzSeed: syncID.map(CardSchedule.fuzzSeed)
             )
         }
         set {
