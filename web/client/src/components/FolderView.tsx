@@ -18,7 +18,6 @@ interface Props {
   folderActions: FolderActions
   cardActions: CardActions
   onAddCards: (folderId: string, cards: { front: string; back: string }[]) => Promise<boolean>
-  onBulkAdd: (text?: string) => void
   questionRef: RefObject<HTMLTextAreaElement | null>
   includeSubfolders: boolean
   onIncludeSubfoldersChange: (value: boolean) => void
@@ -93,7 +92,6 @@ export function FolderView(props: Props) {
       <QuickAdd
         folderName={folder.name}
         onAdd={(cards) => props.onAddCards(folder.id, cards)}
-        onBulkAdd={props.onBulkAdd}
         questionRef={props.questionRef}
       />
 
@@ -106,9 +104,7 @@ export function FolderView(props: Props) {
           <div className="empty-state empty-state-inline">
             <p className="empty-title">No cards in {folder.name} yet</p>
             <p className="empty-text">
-              Type a question and answer above and press <kbd>{modKey}↩</kbd>, or paste your notes
-              with{' '}
-              <button type="button" className="link-button" onClick={() => props.onBulkAdd()}>Bulk add</button>.
+              Type a question and answer above and press <kbd>{modKey}↩</kbd>.
             </p>
             {total > directCount && !showSubfolderCards && (
               <button type="button" className="button" onClick={() => props.onIncludeSubfoldersChange(true)}>

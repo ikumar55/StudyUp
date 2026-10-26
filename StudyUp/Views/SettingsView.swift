@@ -116,7 +116,7 @@ struct SettingsView: View {
     /// Bridges minutes-after-midnight storage to a time picker.
     private func timeOfDay(_ minutes: Binding<Int>) -> Binding<Date> {
         Binding {
-            Calendar.current.date(byAdding: .minute, value: minutes.wrappedValue, to: Calendar.current.startOfDay(for: .now))!
+            ReminderSettings.time(minutes.wrappedValue, on: .now)
         } set: { date in
             let components = Calendar.current.dateComponents([.hour, .minute], from: date)
             minutes.wrappedValue = (components.hour ?? 0) * 60 + (components.minute ?? 0)

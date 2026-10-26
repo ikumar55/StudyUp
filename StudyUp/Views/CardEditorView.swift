@@ -8,6 +8,7 @@ struct CardEditorView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(Presenter.self) private var presenter
     private let folder: Folder?
     private let card: Card?
 
@@ -15,6 +16,8 @@ struct CardEditorView: View {
     @State private var back: EditableText
     @State private var imageError: String?
     @State private var isConfirmingReset = false
+    @State private var isConfirmingDiscard = false
+    @State private var cardToDelete: Card?
     @FocusState private var focusedField: Field?
 
     init(folder: Folder) {
@@ -42,9 +45,17 @@ struct CardEditorView: View {
     /// Each side needs text or an image (an answer can be just a screenshot); a cloze needs no answer.
     private var canSave: Bool { !front.isEmpty && (!back.isEmpty || clozeCount > 0) }
 
+    private var hasChanges: Bool { front.isChanged || back.isChanged }
+
     var body: some View {
         NavigationStack {
             Form {
+                if presenter.queuedSession != nil {
+                    Section {
+                        Label("Your reminder's cards open when you're done with this one.", systemImage: "bell")
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Section {
                     TextField("What is a page fault?", text: $front.text, axis: .vertical)
                         .lineLimit(2...8)
@@ -94,10 +105,7 @@ struct CardEditorView: View {
                         Text("It will come back as a new card, as if you'd never studied it.")
                     }
                     Section {
-                        Button("Delete Card", role: .destructive) {
-                            context.deleteSyncing(card)
-                            dismiss()
-                        }
+                        Button("Delete Card", role: .destructive) { cardToDelete = card }
                     }
                 }
             }
@@ -105,7 +113,13 @@ struct CardEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if hasChanges { isConfirmingDiscard = true } else { dismiss() }
+                    }
+                    .confirmationDialog(isNew ? "Discard this card?" : "Discard your changes?", isPresented: $isConfirmingDiscard, titleVisibility: .visible) {
+                        Button("Discard", role: .destructive) { dismiss() }
+                        Button("Keep Editing", role: .cancel) {}
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isNew ? "Add" : "Save") {
@@ -118,6 +132,10 @@ struct CardEditorView: View {
             .onAppear {
                 if isNew { focusedField = .front }
             }
+            // Unsaved work can't be swiped away, and a reminder tap waits for it instead of closing it.
+            .interactiveDismissDisabled(hasChanges)
+            .onChange(of: hasChanges, initial: true) { _, changed in presenter.sheetHasUnsavedChanges = changed }
+            .deleteCardConfirmation($cardToDelete) { dismiss() }
             .alert("Couldn’t Add Image", isPresented: Binding { imageError != nil } set: { if !$0 { imageError = nil } }) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -180,6 +198,10 @@ private struct EditableText {
 
     var isEmpty: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && images.isEmpty
+    }
+
+    var isChanged: Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines) != originalText || images != originalImages
     }
 
     /// The text to store: the original if nothing changed, otherwise the text with images after it.

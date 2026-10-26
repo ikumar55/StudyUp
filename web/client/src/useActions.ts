@@ -29,7 +29,6 @@ export interface Actions {
   card: CardActions
   /** Adds cards from the quick-add form (one, or several for a cloze question). */
   addCards: (folderId: string, cards: CardContent[]) => Promise<boolean>
-  importCards: (folderId: string, cards: CardContent[]) => Promise<boolean>
   deleteFolder: (id: string) => Promise<void>
 }
 
@@ -193,17 +192,6 @@ export function useActions(context: ActionContext): Actions {
       addCards: async (folderId, cards) => {
         try {
           ctx().lib.applyCards(await api.createCards(folderId, cards))
-          return true
-        } catch (error) {
-          return fail(error)
-        }
-      },
-      importCards: async (folderId, cards) => {
-        try {
-          const created = await api.createCards(folderId, cards)
-          ctx().lib.applyCards(created)
-          ctx().select(folderId)
-          toasts.show({ message: `Added ${plural(created.length, 'card')} to ${name(folderId)}`, kind: 'success' })
           return true
         } catch (error) {
           return fail(error)

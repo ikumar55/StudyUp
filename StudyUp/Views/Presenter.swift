@@ -21,19 +21,23 @@ final class Presenter {
 
     var sheet: Sheet?
     var session: StudySession?
-    private var queuedSession: StudySession?
+    /// Set by a sheet holding unsaved work (a card being written), so a reminder tap doesn't close it.
+    var sheetHasUnsavedChanges = false
+    private(set) var queuedSession: StudySession?
 
-    /// Shows a session, closing any open sheet first. Replaces a session already on screen.
+    /// Shows a session, closing any open sheet first (unless it has unsaved work, in which case the
+    /// session waits until the sheet closes). Replaces a session already on screen.
     func present(_ newSession: StudySession) {
         if sheet != nil {
             queuedSession = newSession
-            sheet = nil
+            if !sheetHasUnsavedChanges { sheet = nil }
         } else {
             session = newSession
         }
     }
 
     func sheetDismissed() {
+        sheetHasUnsavedChanges = false
         if let queuedSession {
             session = queuedSession
             self.queuedSession = nil

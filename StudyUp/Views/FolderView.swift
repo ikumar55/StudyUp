@@ -11,6 +11,7 @@ struct FolderView: View {
     @State private var isAddingSubfolder = false
     @State private var isRenaming = false
     @State private var folderToDelete: Folder?
+    @State private var cardToDelete: Card?
 
     var body: some View {
         let remainingNew = StudyQueue.remainingNewCards(dailyLimit: newCardsPerDay, context: context)
@@ -45,9 +46,9 @@ struct FolderView: View {
                     ForEach(cards) { card in
                         Button { presenter.sheet = .editCard(card) } label: { CardRow(card: card) }
                             .tint(.primary)
-                    }
-                    .onDelete { offsets in
-                        for index in offsets { context.deleteSyncing(cards[index]) }
+                            .swipeActions {
+                                Button("Delete", systemImage: "trash", role: .destructive) { cardToDelete = card }
+                            }
                     }
                 }
             }
@@ -74,6 +75,7 @@ struct FolderView: View {
             folder.rename(to: name)
         }
         .deleteFolderConfirmation($folderToDelete)
+        .deleteCardConfirmation($cardToDelete)
     }
 
     private func counts(_ cards: [Card], _ remainingNew: Int) -> StudyQueue.Counts {

@@ -85,6 +85,8 @@ struct StudySessionView: View {
         Button {
             session.grade(rating, context: context)
             try? context.save()
+            // So a reminder planned for this card doesn't go off while you're still studying.
+            ReminderScheduler.shared.rescheduleSoon(context: context)
             isRevealed = false
         } label: {
             VStack(spacing: 2) {

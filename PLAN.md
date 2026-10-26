@@ -11,7 +11,7 @@ A personal iOS app for **micro-studying through the day**. I write flashcards as
 - **Low friction beats features.** Reviewing from a notification and adding a card should each take seconds.
 - **Retention is the metric.** Scheduling follows the research (FSRS); don't invent intervals.
 - **One fact per card.** The app should nudge toward small, single-fact cards, which are easy to grade honestly.
-- **Local first.** All data stays on the device, with no server and no account.
+- **Local first.** All data stays on my own devices (the iPhone and my Mac), with no cloud and no account.
 
 ## Decisions made
 
@@ -33,10 +33,15 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 ## Next up (as of 2026-10-26)
 
 1. **Test on the iPhone** using TESTING.md. Most features have only been checked on the simulator and the Mac.
-2. **Restore from a backup.** Backups can be downloaded but not restored yet, and with free provisioning this is the safety net.
-3. **App icon.** Notifications currently show a blank placeholder.
+2. **Mac data safety and security** (found in the 2026-10-26 review; all small except the last):
+   - No automatic backups. The SQLite database is never checkpointed or closed, so nearly all data lives in `studyup.db-wal`. Add daily snapshots (keep ~14), checkpoint after syncs, and close the database on shutdown.
+   - A card deleted on the phone has its text blanked on the Mac (tombstones carry empty text), so the Mac can't recover it. Keep the text and only mark it deleted.
+   - Incoming timestamps have no upper bound: a phone clock running ahead wins every later edit. Clamp to now + 1 day.
+   - The editor API trusts only the remote address: a web page can reach it via DNS rebinding, and `text/plain` POSTs pass as JSON. Check `Host`/`Origin` and require JSON. Add body-size limits (`/pair` reads any size, unauthenticated).
+   - (M) A replaced or restored Mac database silently drifts from the phone. Add a database id to `/sync`; when it changes, the phone does a full resync. Needed before restore.
+3. **Restore from a backup.** Backups can be downloaded but not restored yet. A reinstalled app already gets everything back from the Mac on its first sync, so this matters most if the Mac's database is lost.
 4. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
-5. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), and Phase 4.
+5. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
 
 ## Phases
 
@@ -61,7 +66,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 **2b: Answer from the notification** ✅ (2026-10-20)
 - [x] Wrong/Right/Easy action buttons, handled in the background without opening the app
 - [x] Stale reminders (card reviewed or deleted since) are cleared from Notification Center; stale grades are ignored
-- [x] Notification Content Extension (`StudyUpNotificationContent/`): long-press shows the answer; buttons show intervals ("Right · 3d")
+- [x] Notification Content Extension (`StudyUpNotificationContent/`): long-press shows the answer; buttons say when the card comes back ("Right · in 4 days")
 - [x] Plan up to 7 days ahead within the 64-notification limit, so reminders keep coming even if the app isn't opened. This replaced BGAppRefreshTask, which iOS runs unpredictably.
 
 ### Phase 3: Mac web app and sync ✅ (2026-10-20, built and tested on simulator and Mac; device testing pending)
@@ -86,7 +91,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 **3d: Web UI** (`web/client`, React + Vite) ✅ (2026-10-20, built and checked in headless Chrome; not yet tried in Safari)
 - [x] Folder tree with create, rename, move (menu or drag-and-drop) and delete, plus keyboard navigation
 - [x] Fast card entry (⌘↩ adds the card and returns to Question), inline editing, live Markdown preview, delete with Undo
-- [x] Bulk paste: `Q:`/`A:` blocks, `question :: answer` lines, or tab-separated, with live preview and skipped-line warnings
+- Bulk paste (`Q:`/`A:` blocks, `question :: answer` lines, tab-separated) was built, then removed on 2026-10-26: rarely needed, and cards are better written one at a time
 - [x] Search across all cards (⌘K); move cards between folders
 - [x] Download a backup (JSON); iPhone pairing panel; live updates when the phone syncs (polls every 3 s)
 
@@ -98,7 +103,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - [x] **Code blocks** on the iPhone (the web already had them): a monospaced box that scrolls sideways
 - [x] **LaTeX** (2026-10-20): `$inline$` and `$$display$$`. KaTeX on the web; SwiftMath 1.7.x (Swift package) on the iPhone and in the notification view. Bad LaTeX shows in red without breaking the card.
 - [x] **Syntax colors** in code blocks that name a language (```c): highlight.js on the web; a small built-in highlighter on the iPhone (`Shared/CodeHighlighter.swift`)
-- [x] **Cloze cards**: `{{blank}}`, `{{c1::grouped}}`, `{{answer::hint}}`, one card per blank (or group), same rules on web (`cloze.ts`) and iPhone (`Cloze.swift`); bulk paste accepts cloze sentences
+- [x] **Cloze cards**: `{{blank}}`, `{{c1::grouped}}`, `{{answer::hint}}`, one card per blank (or group), same rules on web (`cloze.ts`) and iPhone (`Cloze.swift`)
 - [x] Unused image files are removed after 7 days, on the Mac and the iPhone; the phone only uploads images its cards use
 - [x] The backup download includes images (as base64)
 - [ ] Restore from a backup file (the backup can be downloaded, but not restored yet)
@@ -125,13 +130,67 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - [x] Answer labels: Wrong · "next reminder", Right while learning · "in a few hours" ("tomorrow" if after reminder hours), otherwise days
 - Load note: each new card shows at least twice on its first day. "New cards per day" is the main dial if days feel crowded.
 
+### Phase 3.8: Reminder fixes from the code review (2026-10-26)
+- [x] **"Up to N a day" is now a real limit.** Every replan (after each answer, app open, or app close) used to treat the rest of the day as a fresh day, so 8 a day became 16–19, bunched in the evening. Reminders now sit on fixed times, and the ones already sent count toward the limit. Planned reminders are kept for every day, so ones that go off while the app is closed still count.
+- [x] **Reminder times stay put** when the app replans (opening it no longer pushes the next reminder later)
+- [x] **Daylight saving:** active hours use clock times, so on the days the clocks change reminders still run 9–9, not 8–8 or 10–10
+- [x] **No interruptions while studying:** during a session, reminders go quietly to Notification Center instead of showing a banner, and the plan updates a few seconds after each grade
+- [x] **No lost work in the card editor:** swiping down can't discard a draft; Cancel asks first; a reminder tapped mid-draft waits until the card is done instead of closing the editor
+- [x] **Deleting a card asks first** (swipe or Delete Card), like folders
+- [x] **On going to the background, reminders are replanned before syncing,** so a slow or unreachable Mac can't stop the replan; if iOS runs out of time, the sync is cancelled cleanly
+
 ### Phase 4: Nice to have
-- [ ] App icon (notifications currently show a placeholder)
+- [x] App icon (2026-10-26): two stacked cards with a rising line, matching the web editor's favicon; light, dark and tinted versions. Drawn by `scripts/make-app-icon.swift`
 - [ ] Home-screen widget showing the next due card
 - [ ] Draft cards with an LLM from pasted notes, approved one by one
 - [ ] Optimize FSRS weights from my own review history
 - [ ] Host the sync server in the cloud and add a login, so syncing works away from home Wi-Fi
 - [ ] Anki `.apkg` import
+
+## To consider
+
+Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repetition research and other apps). Not committed to; pick from here. Sizes: S small, M medium, L large.
+
+**Scheduling**
+- **Upgrade to FSRS-6** (S). Two more weights: a trainable forgetting curve, and same-day reviews that help less once a card is well known. Much better at predicting same-day reviews, which are most of ours (benchmark log loss 0.46 → 0.38). Invisible in the UI; existing cards need no migration. The official [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) can check our numbers. FSRS-7 (two memory traces, built for same-day reviews) exists but isn't in a stable release yet; revisit when it is.
+- **Fuzz and load balancing** (S). Cards created together stay due on the same days forever (30 cards → all at 4, 14, 44 days). Add standard FSRS fuzz (seeded per card so button labels match), and pick the least busy day within the fuzz range, as Anki does.
+- **Reminders can't carry the day's load** (S–M). At 1 card per reminder and 8 reminders, that's 8 cards a day, but 10 new cards need 20+ reviews on their first day, and the rest quietly pile up. Options: limit new cards to what reminders can carry, or one plain line on Today ("Today's reminders cover 8 of 23 cards"). Needs a decision.
+- **Keep cloze siblings apart** (M). Cards from one cloze sentence give away each other's answers, and today they arrive in back-to-back reminders. Needs an optional `noteID` on cards (mirrored in `protocol.ts`), then at most one sibling per day.
+- **Cards that keep failing** (S). After ~6–8 lapses, stop putting the card in reminders and list it as "Cards to rewrite" in the web editor. `lapses` already syncs.
+- **Optimize FSRS weights on the Mac** (M; Phase 4 item). The Mac already has every review log. `@open-spaced-repetition/binding` runs the official optimizer in Node; send the weights to the phone as a synced record. Re-run when the review count doubles; no button.
+
+**Reminders**
+- **Mix topics within a reminder** (S). When several cards are equally due, pick from different folders; interleaving helps tell related ideas apart.
+- **Ease off when reminders are ignored** (S–M). If the last few got no answer and no app open, space the next ones further apart; back to normal after any answer. No guilt messages.
+- **"Show Answer" button on the notification** (S–M). Sends the answer as a follow-up notification with the grade buttons, so it works on an Apple Watch and without a long-press.
+- **Reminder hours past midnight, and a 4 AM day boundary** (M). "Until 1:00 AM" currently turns reminders off entirely, and a 00:30 session counts toward the next day.
+- **Home says why there are no reminders** (S). With notifications denied in iOS Settings, Home says "Reminders are off" although the toggle is on.
+
+**iPhone app**
+- **New Card from Home** (S–M). Adding a card takes Home → topic → folder → + → New Card. A Home button (last-used folder, with a folder picker in the editor) plus a long-press app-icon shortcut.
+- **Undo the last grade** (S–M). A mis-tapped Wrong can't be taken back.
+- **Accessibility** (S). The three grade buttons truncate at large text sizes (stack them); inline math has no VoiceOver label.
+- **Performance with thousands of cards** (M). Home and folder views rebuild study queues for every topic on each render; full-size images are decoded on the main thread.
+- **Try App Groups on the free account** (10-minute test). Apple's capability table lists App Groups as available to free accounts, contrary to our assumption. If they work: a home-screen widget, and the notification extension could read images directly.
+- Interactive widget, App Shortcuts ("Study now"), a lock-screen Live Activity: possible later; Live Activity buttons don't work while the phone is locked.
+
+**Web editor**
+- **Due forecast** (S): cards due on each of the next 7 days, as of the last phone sync. Helps tune new cards per day.
+- **"Often missed" filter** (S): cards with many lapses, to rewrite or split.
+- **Multi-select** (M): ⇧/⌘-click several cards to move or delete them.
+- **Duplicate warning** (S): a hint when a new question matches an existing one.
+- **Confirm before discarding an inline edit** (S); Esc currently drops changes silently.
+- **"Recently deleted"** (M), once deletes keep their text (Next up #2).
+
+**Known issues** (smaller, from the same review)
+- A card added or edited on the phone inside a folder deleted on the Mac (before the next sync) is lost on the phone.
+- An open study session or card editor can hold a card that a sync just deleted; a card graded from a notification while shown in a session gets graded twice.
+- An edit that loses the merge on the Mac isn't sent back, so the phone keeps its losing text (only with clock skew).
+- A crash-corrupted database leaves the server restarting every 10 s with no clear message.
+- Editor: a quick-add draft holding a pasted image, saved more than 7 days later, has a broken image; leftover `*.partial` image files are never cleaned up.
+- `npm start` / `npm run dev:server` default to the real database and port 8787.
+
+Considered and skipped: streaks (pressure), typing the answer (too slow on a lock screen), reverse cards, per-folder retention targets (more numbers).
 
 ## Sync design notes
 
@@ -145,9 +204,12 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 ## Notification design notes
 
 - iOS keeps at most **64 pending local notifications** per app, and apps can't run code in the background on demand. So reminders are **planned ahead** (up to 7 days, within a 60-notification budget) and replanned whenever the app runs, including when a card is graded from a notification.
-- Number of reminders per day = min(maximum per day, due cards ÷ cards per reminder), spaced evenly across the remaining active hours.
-- Each reminder names a specific card. Tapping it opens a session with that card plus up to N−1 more due cards.
-- Cards marked Wrong come back through the 1m/10m steps. In the app they reappear in the same session; otherwise in the next reminder.
+- Each day has fixed reminder times: "up to N a day" slots, each in the middle of its share of the active hours (9–21 with 8 a day: 9:45, 11:15, … 20:15). A plan uses only as many as the due cards need (due cards ÷ cards per reminder), spread over the slots still ahead, and reminders already sent today count toward N. So replanning never moves a reminder or adds extra ones.
+- A card that isn't ready at its slot (e.g. a 3-hour check) goes in the first slot after it's ready.
+- Active hours are clock times on each day (not minutes after midnight), so they hold when the clocks change.
+- During a study session in the app, reminders arrive quietly (Notification Center only).
+- Each reminder carries its exact cards (sync IDs), and the first one is shown in the banner. Tapping it reviews those cards, the same ones the Today screen listed.
+- Cards marked Wrong come back after 15 minutes, which lands in the next reminder. A session never shows a card twice.
 
 ## Card-writing guidelines
 

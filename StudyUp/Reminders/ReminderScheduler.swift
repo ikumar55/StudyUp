@@ -19,20 +19,26 @@ final class ReminderScheduler {
     static let shared = ReminderScheduler()
 
     private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
-    private(set) var nextReminderDate: Date?
-    /// Today's reminders still to come, as currently planned.
-    private(set) var upcomingToday: [PlannedReminder] = []
+    /// Every pending planned reminder, on any day. Kept so that reminders which go off while the
+    /// app isn't running still count as sent.
+    private var scheduled: [PlannedReminder] = []
     /// Today's reminders that have already gone out.
     private(set) var sentToday: [PlannedReminder] = []
 
+    var nextReminderDate: Date? { scheduled.first?.fireDate }
+    /// Today's reminders still to come, as currently planned.
+    var upcomingToday: [PlannedReminder] { scheduled.filter { Calendar.current.isDateInToday($0.fireDate) } }
+
     private let defaults = UserDefaults.standard
     private enum Key {
+        static let scheduled = "reminders.scheduled"
+        /// Before 2026-10-26 only today's planned reminders were kept, under this key.
         static let upcomingToday = "reminders.upcomingToday"
         static let sentToday = "reminders.sentToday"
     }
 
     init() {
-        upcomingToday = load(Key.upcomingToday)
+        scheduled = load(defaults.object(forKey: Key.scheduled) == nil ? Key.upcomingToday : Key.scheduled)
         sentToday = load(Key.sentToday)
         recordSentReminders(now: .now)
     }
@@ -43,6 +49,7 @@ final class ReminderScheduler {
     private static let maxDaysAhead = 7
     private static let plannedIdentifierPrefix = "reminder-"
     private var pendingUpdate: Task<Void, Never>?
+    private var delayedUpdate: Task<Void, Never>?
 
     var canSchedule: Bool {
         [.authorized, .provisional, .ephemeral].contains(authorizationStatus)
@@ -60,7 +67,10 @@ final class ReminderScheduler {
     /// Replaces all pending reminders with a fresh plan. Updates run one at a time, in order.
     @discardableResult
     func reschedule(context: ModelContext, now: Date = .now) -> Task<Void, Never> {
+        delayedUpdate?.cancel()
         try? context.save()
+        // Before planning, so today's plan knows how many reminders have gone out.
+        recordSentReminders(now: now)
         let settings = ReminderSettings.load()
         let planned = settings.isEnabled ? plan(context: context, settings: settings, now: now) : []
         let previous = pendingUpdate
@@ -75,18 +85,26 @@ final class ReminderScheduler {
             await removeStaleDeliveredReminders(context: context)
             recordSentReminders(now: now)
             guard canSchedule else {
-                nextReminderDate = nil
-                setUpcomingToday([])
+                setScheduled([])
                 return
             }
             for (request, _) in planned {
                 try? await center.add(request)
             }
-            nextReminderDate = planned.map(\.reminder.fireDate).min()
-            setUpcomingToday(planned.map(\.reminder).filter { Calendar.current.isDate($0.fireDate, inSameDayAs: now) })
+            setScheduled(planned.map(\.reminder))
         }
         pendingUpdate = update
         return update
+    }
+
+    /// Replans a few seconds from now, so a quick run of grades in a session replans once.
+    func rescheduleSoon(context: ModelContext) {
+        delayedUpdate?.cancel()
+        delayedUpdate = Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            reschedule(context: context)
+        }
     }
 
     /// Sends a reminder for the next due card (or any card) in 5 seconds. Returns false if there are no cards.
@@ -127,7 +145,10 @@ final class ReminderScheduler {
         for (dayStart, newLimit) in days {
             let ordered = StudyQueue.reminderCandidates(from: cards, dayStart: dayStart, newLimit: newLimit, calendar: calendar)
             let candidates = ordered.indices.map { ReminderPlanner.Candidate(id: $0, availableAt: ordered[$0].availableAt) }
-            let reminders = ReminderPlanner.planDay(candidates: candidates, dayStart: dayStart, now: now, settings: settings)
+            let reminders = ReminderPlanner.planDay(
+                candidates: candidates, dayStart: dayStart, now: now, settings: settings,
+                alreadySent: dayStart == today ? sentToday.count : 0, calendar: calendar
+            )
             for reminder in reminders {
                 let cards = reminder.cardIDs.map { ordered[$0].card }
                 let cardIDs = cards.compactMap(\.syncID)
@@ -206,20 +227,21 @@ final class ReminderScheduler {
 
     // MARK: - Today's reminders
 
-    /// Moves reminders whose time has passed from "upcoming" to "sent", and forgets earlier days.
+    /// Moves reminders whose time has passed from "scheduled" to "sent", and forgets earlier days.
     private func recordSentReminders(now: Date) {
         let calendar = Calendar.current
-        let fired = upcomingToday.filter { $0.fireDate <= now }
+        let fired = scheduled.filter { $0.fireDate <= now }
         let sent = (sentToday + fired).filter { calendar.isDate($0.fireDate, inSameDayAs: now) }
         sentToday = Array(Dictionary(sent.map { ($0.fireDate, $0) }, uniquingKeysWith: { first, _ in first }).values)
             .sorted { $0.fireDate < $1.fireDate }
         save(sentToday, Key.sentToday)
-        setUpcomingToday(upcomingToday.filter { $0.fireDate > now && calendar.isDate($0.fireDate, inSameDayAs: now) })
+        setScheduled(scheduled.filter { $0.fireDate > now })
     }
 
-    private func setUpcomingToday(_ reminders: [PlannedReminder]) {
-        upcomingToday = reminders.sorted { $0.fireDate < $1.fireDate }
-        save(upcomingToday, Key.upcomingToday)
+    private func setScheduled(_ reminders: [PlannedReminder]) {
+        scheduled = reminders.sorted { $0.fireDate < $1.fireDate }
+        save(scheduled, Key.scheduled)
+        defaults.removeObject(forKey: Key.upcomingToday)
     }
 
     private func load(_ key: String) -> [PlannedReminder] {

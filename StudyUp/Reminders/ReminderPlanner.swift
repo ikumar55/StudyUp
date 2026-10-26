@@ -18,46 +18,49 @@ nonisolated enum ReminderPlanner {
     /// Reminders won't be scheduled sooner than this after planning.
     static let minimumLeadTime: TimeInterval = 60
 
-    /// Spreads reminders evenly over the part of the day's active hours still ahead of `now`.
-    /// - Parameter candidates: Cards in study order; each card is covered by at most one reminder.
+    /// The times reminders can go out on a day: `maxPerDay` fixed slots, each in the middle of its
+    /// share of the active hours. Fixed, so replanning never moves a reminder or squeezes in extra ones.
+    static func slots(dayStart: Date, settings: ReminderSettings, calendar: Calendar = .current) -> [Date] {
+        guard settings.maxPerDay > 0, settings.endMinute > settings.startMinute else { return [] }
+        let windowStart = ReminderSettings.time(settings.startMinute, on: dayStart, calendar: calendar)
+        let windowEnd = ReminderSettings.time(settings.endMinute, on: dayStart, calendar: calendar)
+        let spacing = windowEnd.timeIntervalSince(windowStart) / Double(settings.maxPerDay)
+        return (0..<settings.maxPerDay).map { windowStart.addingTimeInterval(spacing * (Double($0) + 0.5)) }
+    }
+
+    /// Picks which of the day's slots still ahead of `now` get a reminder, and the cards for each.
+    /// - Parameters:
+    ///   - candidates: Cards in study order; each card is covered by at most one reminder.
+    ///   - alreadySent: Reminders that already went out that day; they count toward `maxPerDay`.
     static func planDay<ID>(
-        candidates: [Candidate<ID>], dayStart: Date, now: Date, settings: ReminderSettings
+        candidates: [Candidate<ID>], dayStart: Date, now: Date, settings: ReminderSettings,
+        alreadySent: Int = 0, calendar: Calendar = .current
     ) -> [Reminder<ID>] {
-        guard settings.isEnabled, !candidates.isEmpty,
-              settings.maxPerDay > 0, settings.cardsPerReminder > 0,
-              settings.endMinute > settings.startMinute
-        else { return [] }
-
-        let windowStart = dayStart.addingTimeInterval(TimeInterval(settings.startMinute * 60))
-        let windowEnd = dayStart.addingTimeInterval(TimeInterval(settings.endMinute * 60))
-        let earliest = max(windowStart, now.addingTimeInterval(minimumLeadTime))
-        guard earliest < windowEnd else { return [] }
-
-        // If part of the window has already passed, send proportionally fewer reminders.
-        let remainingFraction = windowEnd.timeIntervalSince(earliest) / windowEnd.timeIntervalSince(windowStart)
-        let cap = max(1, Int((Double(settings.maxPerDay) * remainingFraction).rounded(.up)))
+        guard settings.isEnabled, !candidates.isEmpty, settings.cardsPerReminder > 0 else { return [] }
+        let earliest = now.addingTimeInterval(minimumLeadTime)
+        let slots = slots(dayStart: dayStart, settings: settings, calendar: calendar).filter { $0 >= earliest }
         let needed = (candidates.count + settings.cardsPerReminder - 1) / settings.cardsPerReminder
-        let slotCount = min(cap, needed)
+        let count = min(slots.count, settings.maxPerDay - alreadySent, needed)
+        guard count > 0 else { return [] }
 
-        // Place each slot in the middle of its share of the window.
-        let spacing = windowEnd.timeIntervalSince(earliest) / Double(slotCount)
         var used = Set<ID>()
         var reminders: [Reminder<ID>] = []
-        for index in 0..<slotCount {
+        var nextSlot = 0
+        for index in 0..<count {
+            // Spread the reminders evenly over the remaining slots...
+            let target = max(Int((Double(index) + 0.5) * Double(slots.count) / Double(count)), nextSlot)
+            // ...but if nothing is ready by then (e.g. a card being learned), use the first slot after it is.
             let unused = candidates.filter { !used.contains($0.id) }
-            var fireDate = earliest.addingTimeInterval(spacing * (Double(index) + 0.5))
-            // If nothing is ready yet (e.g. only a learning card due later), wait for the next card.
-            if !unused.contains(where: { $0.availableAt <= fireDate }),
-               let nextReady = unused.map(\.availableAt).min(), nextReady < windowEnd {
-                fireDate = max(nextReady, earliest)
-            }
+            guard target < slots.count,
+                  let slot = (target..<slots.count).first(where: { slot in unused.contains { $0.availableAt <= slots[slot] } })
+            else { break }
             let cardIDs = unused
-                .filter { $0.availableAt <= fireDate }
+                .filter { $0.availableAt <= slots[slot] }
                 .prefix(settings.cardsPerReminder)
                 .map(\.id)
-            guard !cardIDs.isEmpty else { continue }
             used.formUnion(cardIDs)
-            reminders.append(Reminder(fireDate: fireDate, cardIDs: cardIDs))
+            reminders.append(Reminder(fireDate: slots[slot], cardIDs: cardIDs))
+            nextSlot = slot + 1
         }
         return reminders
     }

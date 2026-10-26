@@ -85,13 +85,17 @@ struct HomeView: View {
         }
         .environment(presenter)
         .sheet(item: $presenter.sheet, onDismiss: sheetDismissed) { sheet in
-            switch sheet {
-            case .settings: SettingsView()
-            case .newCard(let folder): CardEditorView(folder: folder)
-            case .editCard(let card): CardEditorView(card: card)
+            Group {
+                switch sheet {
+                case .settings: SettingsView()
+                case .newCard(let folder): CardEditorView(folder: folder)
+                case .editCard(let card): CardEditorView(card: card)
+                }
             }
+            .environment(presenter)
         }
         .fullScreenCover(item: $presenter.session, onDismiss: reschedule) { StudySessionView(session: $0) }
+        .onChange(of: presenter.session == nil) { _, isClosed in router.isStudying = !isClosed }
         .task(id: router.pendingReminder) { openPendingReminder() }
         // Adding sample cards or deleting a folder changes what's due without closing a sheet.
         .onChange(of: allCards.count) { reschedule() }

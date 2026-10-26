@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ClipboardEvent, KeyboardEvent, RefObject } from 'react'
-import { parseBulk } from '../bulkParse.ts'
+import type { KeyboardEvent, RefObject } from 'react'
 import { expandCloze, hasCloze } from '../cloze.ts'
 import { hasModifier, modKey } from '../format.ts'
 import { loadValue, saveValue } from '../storage.ts'
 import { useImageInsertion } from '../useImageInsertion.ts'
 import { AutoTextarea } from './AutoTextarea.tsx'
-import { CheckIcon, ImageIcon, ImportIcon } from './Icons.tsx'
+import { CheckIcon, ImageIcon } from './Icons.tsx'
 import { Markdown } from './Markdown.tsx'
 
 interface Draft {
@@ -18,7 +17,6 @@ interface Props {
   folderName: string
   /** Adds the card(s); resolves to false if the server refused them. A cloze question makes several. */
   onAdd: (cards: { front: string; back: string }[]) => Promise<boolean>
-  onBulkAdd: (text?: string) => void
   questionRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -28,12 +26,11 @@ const emptyDraft: Draft = { front: '', back: '' }
  * The card entry form. ⌘↩ adds the card, clears both fields, and returns to Question, so cards can be
  * typed one after another without the mouse. The draft survives reloads and switching topics.
  */
-export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
+export function QuickAdd({ folderName, onAdd, questionRef }: Props) {
   const [draft, setDraft] = useState<Draft>(() => loadValue('draft', emptyDraft))
   const [preview, setPreview] = useState(() => loadValue('preview', false))
   const [added, setAdded] = useState<{ count: number; folder: string } | null>(null)
   const [hint, setHint] = useState<string | null>(null)
-  const [pasteOffer, setPasteOffer] = useState<{ text: string; count: number; before: Draft } | null>(null)
   const answerRef = useRef<HTMLTextAreaElement>(null)
   const draftRef = useRef(draft)
   draftRef.current = draft
@@ -80,7 +77,6 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
     }
     // Clear right away so the next card can be typed while this one saves.
     setDraft(emptyDraft)
-    setPasteOffer(null)
     setHint(null)
     questionRef.current?.focus()
     const cards = cloze ? expandCloze(front, back) : [{ front, back }]
@@ -97,22 +93,7 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
     if (event.key === 'Enter' && hasModifier(event)) {
       event.preventDefault()
       void submit()
-    } else if (event.key === 'Escape' && pasteOffer) {
-      setPasteOffer(null)
     }
-  }
-
-  // Pasting notes with several cards offers to import them all at once.
-  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const text = event.clipboardData.getData('text/plain')
-    if (!text.includes('\n')) return
-    const { format, cards, skipped } = parseBulk(text)
-    // Pasted code (e.g. C++ with "::") shouldn't look like cards: require mostly-clean matches,
-    // and for "::" lines, the spaced form.
-    const spacedColons = text.split('\n').filter((line) => /\s::\s/.test(line)).length
-    if (cards.length < 2 || skipped.length > cards.length / 4) return
-    if (format === 'colons' && spacedColons < cards.length) return
-    setPasteOffer({ text, count: cards.length, before: draft })
   }
 
   const update = (field: keyof Draft) => (event: { target: { value: string } }) =>
@@ -132,7 +113,7 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
           onChange={update('front')}
           onKeyDown={onKeyDown}
           onFocus={() => setLastField('front')}
-          onPaste={(event) => frontImages.onPaste(event) || onPaste(event)}
+          onPaste={frontImages.onPaste}
           onDragOver={frontImages.onDragOver}
           onDrop={frontImages.onDrop}
         />
@@ -149,32 +130,11 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
           onChange={update('back')}
           onKeyDown={onKeyDown}
           onFocus={() => setLastField('back')}
-          onPaste={(event) => backImages.onPaste(event) || onPaste(event)}
+          onPaste={backImages.onPaste}
           onDragOver={backImages.onDragOver}
           onDrop={backImages.onDrop}
         />
       </div>
-
-      {pasteOffer && (
-        <div className="paste-offer" role="status">
-          <ImportIcon />
-          <span>That looks like {pasteOffer.count} cards.</span>
-          <button
-            type="button"
-            className="button button-small button-primary"
-            onClick={() => {
-              setDraft(pasteOffer.before)
-              onBulkAdd(pasteOffer.text)
-              setPasteOffer(null)
-            }}
-          >
-            Import {pasteOffer.count} cards…
-          </button>
-          <button type="button" className="button button-small button-quiet" onClick={() => setPasteOffer(null)}>
-            Keep as one card
-          </button>
-        </div>
-      )}
 
       {preview && clozeCards && clozeCards.map((card, i) => (
         <div key={i} className="quick-preview" aria-label={`Preview of cloze card ${i + 1}`}>
@@ -222,9 +182,6 @@ export function QuickAdd({ folderName, onAdd, onBulkAdd, questionRef }: Props) {
           onClick={() => (lastField === 'front' ? frontImages : backImages).pick()}
         >
           <ImageIcon /> Image…
-        </button>
-        <button type="button" className="button button-quiet" onClick={() => onBulkAdd()}>
-          <ImportIcon /> Bulk add…
         </button>
         <button type="button" className="button button-primary" onClick={() => void submit()}>
           Add card

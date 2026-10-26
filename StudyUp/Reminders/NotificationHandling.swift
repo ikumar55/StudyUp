@@ -85,6 +85,8 @@ nonisolated struct ReminderTap: Equatable, Sendable {
 final class NotificationRouter {
     static let shared = NotificationRouter()
     var pendingReminder: ReminderTap?
+    /// Whether a study session is on screen; reminders then arrive quietly instead of interrupting it.
+    var isStudying = false
 }
 
 /// Records a grade chosen from a reminder's action buttons, usually with the app in the background.
@@ -115,12 +117,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     // These use completion handlers rather than the async variants: UIKit aborts if the async
     // variant's completion runs off the main thread, which it does after a background action.
 
-    /// Show reminders even while the app is open.
+    /// Show reminders even while the app is open, except during a study session, where a banner
+    /// would interrupt (and tapping it would replace the session). They still go to Notification Center.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .list, .sound])
+        Task { @MainActor in
+            completionHandler(NotificationRouter.shared.isStudying ? [.list] : [.banner, .list, .sound])
+        }
     }
 
     nonisolated func userNotificationCenter(

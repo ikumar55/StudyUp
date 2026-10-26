@@ -22,6 +22,7 @@ StudyUpNotificationContent/  Notification Content Extension: long-press a remind
 StudyUpTests/                Swift Testing unit tests (+ SyncIntegrationTests against a live server)
 StudyUpUITests/              XCTest UI tests (launch with -inMemoryStore)
 Config/StudyUp-Info.plist    Extra Info.plist keys merged into the app's (Local Network, Bonjour, ATS local networking)
+scripts/make-app-icon.swift  Draws the app icon (light/dark/tinted PNGs) into Assets.xcassets/AppIcon.appiconset
 web/                         Mac web app (see web/README.md)
   shared/                    protocol.ts (sync records, mirrored in Swift), images.ts (image reference syntax)
   server/                    Node 26 + TypeScript run directly (no build), Hono, node:sqlite; store.ts holds the merge rules

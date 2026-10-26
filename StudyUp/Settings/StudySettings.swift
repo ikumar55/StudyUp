@@ -42,7 +42,13 @@ nonisolated struct ReminderSettings: Equatable, Sendable {
     /// When reminders stop on the given day, or nil if reminders are off.
     func windowEnd(on day: Date, calendar: Calendar = .current) -> Date? {
         guard isEnabled else { return nil }
-        return calendar.date(byAdding: .minute, value: endMinute, to: calendar.startOfDay(for: day))
+        return Self.time(endMinute, on: day, calendar: calendar)
+    }
+
+    /// The clock time `minute` minutes after midnight on `day`. Uses the calendar rather than adding
+    /// seconds to midnight, so 9:00 stays 9:00 on days the clocks change.
+    static func time(_ minute: Int, on day: Date, calendar: Calendar = .current) -> Date {
+        calendar.date(bySettingHour: minute / 60, minute: minute % 60, second: 0, of: day)!
     }
 
     static func load(_ defaults: UserDefaults = .standard) -> ReminderSettings {

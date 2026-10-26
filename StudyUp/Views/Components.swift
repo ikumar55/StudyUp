@@ -172,6 +172,28 @@ struct DeleteFolderConfirmation: ViewModifier {
     }
 }
 
+struct DeleteCardConfirmation: ViewModifier {
+    @Environment(\.modelContext) private var context
+    @Binding var card: Card?
+    let onDelete: () -> Void
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Delete this card?",
+            isPresented: Binding(get: { card != nil }, set: { if !$0 { card = nil } }),
+            titleVisibility: .visible,
+            presenting: card
+        ) { card in
+            Button("Delete Card", role: .destructive) {
+                context.deleteSyncing(card)
+                onDelete()
+            }
+        } message: { _ in
+            Text("Its review history will be deleted too.")
+        }
+    }
+}
+
 extension View {
     func folderNameAlert(
         _ title: String, isPresented: Binding<Bool>, initialName: String = "", onSave: @escaping (String) -> Void
@@ -181,5 +203,9 @@ extension View {
 
     func deleteFolderConfirmation(_ folder: Binding<Folder?>) -> some View {
         modifier(DeleteFolderConfirmation(folder: folder))
+    }
+
+    func deleteCardConfirmation(_ card: Binding<Card?>, onDelete: @escaping () -> Void = {}) -> some View {
+        modifier(DeleteCardConfirmation(card: card, onDelete: onDelete))
     }
 }

@@ -30,7 +30,6 @@ export function WelcomeView({ hasPhone, onNewTopic, onPair }: Props) {
       <ol className="welcome-steps">
         <li>Create a topic and give it a name.</li>
         <li>Type a question, press <kbd>Tab</kbd>, type the answer, press <kbd>{modKey}↩</kbd>. Repeat.</li>
-        <li>Already have notes? Paste them with <strong>Bulk add</strong>.</li>
       </ol>
     </div>
   )

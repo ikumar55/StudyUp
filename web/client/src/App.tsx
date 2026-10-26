@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { BulkImportDialog } from './components/BulkImportDialog.tsx'
 import { CardList } from './components/CardList.tsx'
 import { ConfirmDialog } from './components/Dialog.tsx'
 import { FolderView } from './components/FolderView.tsx'
@@ -21,7 +20,6 @@ import { useActions } from './useActions.ts'
 import { useLibrary } from './useLibrary.ts'
 
 type OpenDialog =
-  | { kind: 'bulk'; text: string }
   | { kind: 'phone' }
   | { kind: 'shortcuts' }
   | { kind: 'moveCard'; id: string }
@@ -115,7 +113,6 @@ export function App() {
   })
 
   const selectedFolder = index && typeof selected === 'string' ? index.folders.get(selected) : undefined
-  const openBulk = useCallback((text = '') => setDialog({ kind: 'bulk', text }), [])
 
   // MARK: Search
 
@@ -173,16 +170,13 @@ export function App() {
       } else if (event.key === 'n' && selectedFolder && !searching) {
         event.preventDefault()
         questionRef.current?.focus()
-      } else if (event.key === 'b' && selectedFolder) {
-        event.preventDefault()
-        openBulk()
       } else if (event.key === 'Escape' && searching) {
         setQuery('')
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [dialog, selectedFolder, searching, openBulk])
+  }, [dialog, selectedFolder, searching])
 
   // MARK: Rendering
 
@@ -225,7 +219,6 @@ export function App() {
         folderActions={actions.folder}
         cardActions={actions.card}
         onAddCards={actions.addCards}
-        onBulkAdd={openBulk}
         questionRef={questionRef}
         includeSubfolders={includeSubfolders}
         onIncludeSubfoldersChange={setIncludeSubfolders}
@@ -287,15 +280,6 @@ export function App() {
         <div className="main-content">{main}</div>
       </main>
 
-      {index && dialog?.kind === 'bulk' && (
-        <BulkImportDialog
-          index={index}
-          initialText={dialog.text}
-          defaultFolderId={selectedFolder?.id ?? index.children.get(null)?.[0]?.id ?? ''}
-          onImport={actions.importCards}
-          onClose={closeDialog}
-        />
-      )}
       {dialog?.kind === 'phone' && <PhoneDialog status={lib.status} onRefresh={lib.refresh} onClose={closeDialog} />}
       {dialog?.kind === 'shortcuts' && <ShortcutsDialog onClose={closeDialog} />}
       {index && dialog?.kind === 'moveCard' && (
