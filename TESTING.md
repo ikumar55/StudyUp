@@ -18,8 +18,8 @@ Automated tests run on the simulator: `xcodebuild test … -parallel-testing-ena
 | [ ] | Create a topic, a subfolder inside it, and a sub-subfolder | |
 | [ ] | "Add and Start Next Card" saves the card, clears the form, and keeps the keyboard up for fast entry | |
 | [ ] | Markdown shows correctly in the study view: **bold**, *italic*, `code` | |
-| [ ] | Study a folder: Wrong brings the card back in about 1 minute, in the same session | |
-| [ ] | Study a folder: Right on a new card brings it back in about 10 minutes, then in days | |
+| [ ] | Study a folder: Wrong doesn't repeat the card in that session; it's due again in the next reminder | |
+| [ ] | Study a folder: Right on a new card brings it back in about 3 hours, then in days | |
 | [ ] | Folder badges and "Study now" counts look right after studying | |
 | [ ] | Deleting a folder asks for confirmation and removes its cards | |
 | [ ] | Settings (new cards per day, retention) are still set after quitting the app | |
@@ -91,7 +91,7 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | ✓ | Test | Notes |
 |---|---|---|
 | [ ] | The card editor no longer has "Add and Start Next Card"; Add saves and closes | |
-| [ ] | Study buttons say "again today", "later today", "tomorrow", "in N days" | |
+| [ ] | Study buttons say: Wrong · "next reminder", Right on a new card · "in a few hours", Right on a learned card · "in N days" | |
 | [ ] | Long-press notification buttons use the same wording | |
 | [ ] | Home: "Today: N cards left" goes down as you answer, and back up when you get one wrong | |
 | [ ] | Home → Today lists upcoming reminders with their cards; earlier ones show as sent | |
@@ -99,6 +99,16 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | Today → a reminder → Study These Now works | |
 | [ ] | Card editor: Review Today makes the card due now; Reset Progress (with confirmation) makes it New | |
 | [ ] | Web: card "…" → Review today / Reset progress…, and the phone shows the change after a sync | |
+
+## Phase 3.7: Studying through the day
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Answering Wrong in a Quick Review doesn't show that card again in the same review | |
+| [ ] | A card you got Wrong shows up in the **next** reminder (Today screen lists it there) | |
+| [ ] | A new card answered Right comes back in a reminder about 3 hours later, then goes to days after another Right | |
+| [ ] | Right late in the evening (within 3 hours of your reminder end time) says "tomorrow" and arrives in the first reminder next morning | |
+| [ ] | Study now right after a Wrong doesn't immediately show that card again | |
 
 ## Feel and feedback
 

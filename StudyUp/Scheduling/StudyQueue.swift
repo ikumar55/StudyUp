@@ -8,8 +8,6 @@ enum StudyScope {
 
 /// Decides which cards are ready to study right now.
 enum StudyQueue {
-    /// Learning cards due within this window are shown early rather than ending the session.
-    static let learnAhead: TimeInterval = 20 * 60
 
     struct Counts {
         var learning = 0
@@ -34,7 +32,8 @@ enum StudyQueue {
         for card in cards {
             switch card.state {
             case .learning, .relearning:
-                if card.due <= now.addingTimeInterval(learnAhead) { learning.append(card) }
+                // Only once due: a card missed a moment ago waits for the next reminder.
+                if card.due <= now { learning.append(card) }
             case .review:
                 if card.due < startOfTomorrow { review.append(card) }
             case .new:

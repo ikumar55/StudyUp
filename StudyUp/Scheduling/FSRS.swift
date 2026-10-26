@@ -36,6 +36,13 @@ nonisolated struct FSRS: Sendable {
         1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621,
     ]
 
+    /// Steps for cards still being learned, sized for studying through the day in reminders rather
+    /// than in long sessions: Wrong waits 15 minutes, so the card comes back in the *next* reminder;
+    /// Right waits 3 hours, a same-day check that it stuck; Right again graduates to days.
+    static let defaultLearningSteps: [TimeInterval] = [15 * 60, 3 * 3600]
+    /// A forgotten card comes back in the next reminder; Right then returns it to day-scale reviews.
+    static let defaultRelearningSteps: [TimeInterval] = [15 * 60]
+
     private static let decay = -0.5
     private static let factor = 19.0 / 81.0
     private static let secondsPerDay: TimeInterval = 86_400
@@ -49,8 +56,8 @@ nonisolated struct FSRS: Sendable {
     init(
         weights: [Double] = FSRS.defaultWeights,
         desiredRetention: Double = 0.9,
-        learningSteps: [TimeInterval] = [60, 600],
-        relearningSteps: [TimeInterval] = [600],
+        learningSteps: [TimeInterval] = FSRS.defaultLearningSteps,
+        relearningSteps: [TimeInterval] = FSRS.defaultRelearningSteps,
         maximumIntervalDays: Int = 36_500
     ) {
         precondition(weights.count == 19, "FSRS-5 needs 19 weights")

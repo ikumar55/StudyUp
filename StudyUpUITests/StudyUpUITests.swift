@@ -94,12 +94,12 @@ final class StudyUpUITests: XCTestCase {
         XCTAssertTrue(banner.waitForExistence(timeout: 15))
         banner.press(forDuration: 1.0)
         // The content extension labels each button with where it sends the card next.
-        let right = springboard.buttons["Right · later today"]
+        let right = springboard.buttons["Right · in a few hours"]
         XCTAssertTrue(right.waitForExistence(timeout: 5))
         attachScreenshot("10-expanded-reminder", springboard)
         right.tap()
 
-        // The card moved into learning (back later today), so it's no longer a new card.
+        // The card moved into learning (a check in a few hours), so it's no longer a new card.
         let updated = NSPredicate(format: "label CONTAINS '6 new'")
         expectation(for: updated, evaluatedWith: studyNow)
         waitForExpectations(timeout: 10)

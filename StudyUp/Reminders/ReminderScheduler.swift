@@ -159,7 +159,9 @@ final class ReminderScheduler {
         // Intervals as of the fire time; any change to the card triggers a replan anyway.
         let previews = fsrs.preview(card.schedule, now: fireDate)
         let intervals = GradeAction.ratings.map { rating, _ in
-            previews[rating].map { DueText.next($0.due, from: fireDate, rating: rating) } ?? ""
+            previews[rating].map {
+                DueText.next($0.due, from: fireDate, rating: rating, reminderEnd: ReminderSettings.load().windowEnd(on: fireDate))
+            } ?? ""
         }
         content.userInfo = ReminderPayload.userInfo(for: card, path: content.title, intervals: intervals, cardIDs: cardIDs)
         content.attachments = attachments(for: card)

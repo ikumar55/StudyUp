@@ -91,7 +91,7 @@ struct StudySessionView: View {
                 Text(title)
                     .font(.headline)
                 if let preview {
-                    Text(DueText.next(preview.due, from: now, rating: rating))
+                    Text(DueText.next(preview.due, from: now, rating: rating, reminderEnd: ReminderSettings.load().windowEnd(on: now)))
                         .font(.caption)
                 }
             }

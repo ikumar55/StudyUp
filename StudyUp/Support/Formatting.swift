@@ -1,12 +1,20 @@
 import SwiftUI
 
 nonisolated enum DueText {
-    /// When a card comes back, in plain words: "again today", "later today", "tomorrow", "in 4 days",
-    /// "in 3 weeks", "in 2 months", "in 1.5 years". Minutes and hours don't matter to the person studying:
-    /// what matters is whether it's today, and if not, roughly when.
-    static func next(_ due: Date, from now: Date = .now, rating: Rating? = nil, calendar: Calendar = .current) -> String {
-        if due <= now || calendar.isDate(due, inSameDayAs: now) {
-            return rating == .again ? "again today" : "later today"
+    /// When a card comes back, in plain words. For an answer: Wrong → "next reminder"; a same-day check
+    /// → "in a few hours" (or "tomorrow" if that's after `reminderEnd`); otherwise "tomorrow",
+    /// "in 4 days", "in 3 weeks", "in 2 months", "in 1.5 years". Without a rating (a card's status)
+    /// a same-day time reads "later today". Exact minutes and hours don't matter to the person studying.
+    static func next(
+        _ due: Date, from now: Date = .now, rating: Rating? = nil, reminderEnd: Date? = nil, calendar: Calendar = .current
+    ) -> String {
+        let sameDay = due <= now || calendar.isDate(due, inSameDayAs: now)
+        if rating == .again, sameDay || due < calendar.startOfDay(for: now).addingTimeInterval(2 * 86_400) {
+            return "next reminder"
+        }
+        if sameDay {
+            if let reminderEnd, due > reminderEnd { return "tomorrow" }
+            return rating == nil ? "later today" : "in a few hours"
         }
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: due)).day ?? 0
         switch days {

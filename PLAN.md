@@ -19,7 +19,7 @@ A personal iOS app for **micro-studying through the day**. I write flashcards as
 |---|---|---|
 | Platform | Native iOS, SwiftUI, iOS 26.5+ | First-class notification APIs; matches the iPhone (26.5.2) |
 | Storage | SwiftData, on device | Built in; models are in `StudyUp/Models/Models.swift` |
-| Scheduler | FSRS-5 with Anki-style learning steps (1m, 10m; relearn 10m) | Anki's current default; fewer reviews for the same retention than SM-2 |
+| Scheduler | FSRS-5 with learning steps of 15 min and 3 h (relearn 15 min) | FSRS is Anki's current default. The steps were changed on 2026-10-26 from Anki's 1m/10m to suit studying in short reminders: Wrong → next reminder, Right → a same-day check |
 | Grading | Wrong / Right / Easy (FSRS Again / Good / Easy) | Chosen 2026-10-19; "Hard" adds little |
 | Apple account | Free (Personal Team) | No $99/yr. The app must be reinstalled from Xcode every 7 days. No iCloud/CloudKit, and App Groups may not be available |
 | Writing cards on the Mac | Local web app on the Mac (TypeScript: React UI + Node server + SQLite) that syncs with the phone over Wi-Fi (phase 3) | Chosen 2026-10-20 over a phone-hosted editor: you can write anytime, the Mac keeps a backup, and it can move to the cloud later by hosting the same server |
@@ -28,23 +28,15 @@ A personal iOS app for **micro-studying through the day**. I write flashcards as
 
 ## Architecture
 
-```
-StudyUp/
-  Models/        SwiftData models: Folder (nested), Card (content + FSRS state), ReviewLog
-  Scheduling/    FSRS (pure algorithm), StudyQueue (what's due), StudySession (a run of reviews)
-  Reminders/     ReminderPlanner (pure: when and which cards), ReminderScheduler (UNUserNotificationCenter),
-                 notification tap handling (AppDelegate → NotificationRouter → HomeView)
-  Settings/      UserDefaults keys and defaults
-  Support/       Formatting, Markdown text, sample data
-  Views/         Home, Folder, CardEditor, StudySession, Settings
-StudyUpNotificationContent/  Notification Content Extension: question + answer on long-press; reads the app's payload keys
-StudyUpTests/    Unit tests (Swift Testing)
-StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
-```
+See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules that are easy to break, and the commands. It's kept current; this file is the roadmap.
 
-- `FSRS` and `CardSchedule` don't depend on storage, so the algorithm can be unit-tested on plain values.
-- Scheduling fields are stored flat on `Card` so fetch predicates can filter on `due` and `stateRaw`.
-- Queue order: learning cards due within 20 minutes, then reviews due today, then new cards up to the daily limit.
+## Next up (as of 2026-10-26)
+
+1. **Test on the iPhone** using TESTING.md. Most features have only been checked on the simulator and the Mac.
+2. **Restore from a backup.** Backups can be downloaded but not restored yet, and with free provisioning this is the safety net.
+3. **App icon.** Notifications currently show a blank placeholder.
+4. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
+5. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), and Phase 4.
 
 ## Phases
 
@@ -122,6 +114,16 @@ StudyUpUITests/  UI smoke test (XCTest); launches with -inMemoryStore
 - [x] **Today** schedule screen (today only): upcoming reminders with their cards, "Study These Now", and those already sent
 - [x] Each reminder carries its exact cards, so tapping it reviews what the schedule showed
 - [x] **Review Today** and **Reset Progress** for a card, on the iPhone (card editor) and the web (card "…" menu); the web's change reaches the phone on its next sync
+
+### Phase 3.7: Scheduling for studying through the day (2026-10-26)
+- [x] Learning steps changed from Anki's 1 min / 10 min (made for long sessions) to **15 min / 3 hours**:
+  - Wrong → the **next reminder** (15 min means it never comes back in the same sitting)
+  - Right on a card still being learned → **a same-day check in about 3 hours**
+  - Right again → graduates to days (4 → 14 → 44 days …); Easy skips straight to days (16 days)
+  - A forgotten review card → next reminder, then back to days
+- [x] Study sessions show each card once (no in-session repeats), and "ready now" only counts cards that are actually due
+- [x] Answer labels: Wrong · "next reminder", Right while learning · "in a few hours" ("tomorrow" if after reminder hours), otherwise days
+- Load note: each new card shows at least twice on its first day. "New cards per day" is the main dial if days feel crowded.
 
 ### Phase 4: Nice to have
 - [ ] App icon (notifications currently show a placeholder)

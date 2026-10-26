@@ -39,6 +39,12 @@ nonisolated struct ReminderSettings: Equatable, Sendable {
     var maxPerDay = StudySettings.defaultRemindersPerDay
     var cardsPerReminder = StudySettings.defaultCardsPerReminder
 
+    /// When reminders stop on the given day, or nil if reminders are off.
+    func windowEnd(on day: Date, calendar: Calendar = .current) -> Date? {
+        guard isEnabled else { return nil }
+        return calendar.date(byAdding: .minute, value: endMinute, to: calendar.startOfDay(for: day))
+    }
+
     static func load(_ defaults: UserDefaults = .standard) -> ReminderSettings {
         var settings = ReminderSettings()
         if let value = defaults.object(forKey: StudySettings.remindersEnabledKey) as? Bool { settings.isEnabled = value }

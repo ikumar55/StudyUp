@@ -60,7 +60,7 @@ struct TodaySummaryRow: View {
         guard remindersEnabled else { return "Reminders are off" }
         if let next = upcoming.first {
             let count = upcoming.count
-            return "\(count) \(count == 1 ? "reminder" : "reminders") left · next at \(next.fireDate.formatted(date: .omitted, time: .shortened)) (\(next.cardIDs.count) \(next.cardIDs.count == 1 ? "card" : "cards"))"
+            return "\(count) \(count == 1 ? "reminder" : "reminders") left · next at \(next.fireDate.formatted(date: .omitted, time: .shortened))"
         }
         if let nextReminder, !Calendar.current.isDateInToday(nextReminder) {
             return "No more reminders today · next \(Calendar.current.isDateInTomorrow(nextReminder) ? "tomorrow" : nextReminder.formatted(.dateTime.weekday())) at \(nextReminder.formatted(date: .omitted, time: .shortened))"

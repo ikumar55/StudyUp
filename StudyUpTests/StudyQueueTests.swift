@@ -34,9 +34,11 @@ struct StudyQueueTests {
     @Test func skipsCardsNotYetDue() {
         let laterToday = makeCard("learning later", state: .learning, due: now.addingTimeInterval(3 * 3600))
         let nextWeek = makeCard("review next week", state: .review, due: now.addingTimeInterval(7 * 86_400))
+        // Missed a moment ago: it waits for the next reminder instead of coming straight back.
         let soon = makeCard("learning soon", state: .learning, due: now.addingTimeInterval(5 * 60))
-        let queue = StudyQueue.build(from: [laterToday, nextWeek, soon], newLimit: 10, now: now)
-        #expect(queue.map(\.front) == ["learning soon"])
+        let due = makeCard("learning due", state: .learning, due: now.addingTimeInterval(-60))
+        let queue = StudyQueue.build(from: [laterToday, nextWeek, soon, due], newLimit: 10, now: now)
+        #expect(queue.map(\.front) == ["learning due"])
     }
 
     @Test func limitsNewCards() {
@@ -94,14 +96,15 @@ struct StudyQueueTests {
         #expect(StudyQueue.remainingNewCards(dailyLimit: 10, context: context, now: now) == 9)
     }
 
-    @Test func sessionRequeuesCardsDueSoon() {
+    @Test func aSessionShowsEachCardOnce() {
         let card = makeCard("new")
-        let session = StudySession(title: "Test", cards: [card], fsrs: FSRS())
+        let other = makeCard("other")
+        let session = StudySession(title: "Test", cards: [card, other], fsrs: FSRS())
         session.grade(.again, context: context, now: now)
-        #expect(session.current === card)
-        session.grade(.easy, context: context, now: now.addingTimeInterval(60))
+        #expect(session.current === other, "a missed card waits for the next reminder")
+        session.grade(.good, context: context, now: now)
         #expect(session.current == nil)
         #expect(session.reviewedCount == 2)
-        #expect(card.reviewLogs.count == 2)
+        #expect(card.due > now)
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftData
 
-/// A run through the cards that are due, re-showing cards that come back within the session.
+/// A run through the cards that are due, each shown once.
 @Observable
 final class StudySession: Identifiable {
     let title: String
@@ -64,11 +64,9 @@ final class StudySession: Identifiable {
     func grade(_ rating: Rating, context: ModelContext, now: Date = .now) {
         guard let card = queue.first else { return }
         card.record(rating, fsrs: fsrs, context: context, now: now)
+        // Each card is shown once per session; one you get wrong comes back in the next reminder.
         queue.removeFirst()
         reviewedCount += 1
-        if card.due <= now.addingTimeInterval(StudyQueue.learnAhead) {
-            queue.append(card)
-        }
         if queue.isEmpty, let refill {
             moreDueCount = refill().count
         }

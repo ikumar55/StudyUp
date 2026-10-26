@@ -15,7 +15,7 @@ struct FSRSTests {
     /// Runs a new card through its learning steps until it reaches the review state.
     private func graduated() -> (card: CardSchedule, at: Date) {
         let first = fsrs.review(newCard(), rating: .good, now: start)
-        let at = start.addingTimeInterval(600)
+        let at = first.due
         return (fsrs.review(first, rating: .good, now: at), at)
     }
 
@@ -23,7 +23,8 @@ struct FSRSTests {
         let next = fsrs.review(newCard(), rating: .again, now: start)
         #expect(next.state == .learning)
         #expect(next.step == 0)
-        #expect(next.due == start.addingTimeInterval(60))
+        // 15 minutes: long enough to land in the next reminder rather than this one.
+        #expect(next.due == start.addingTimeInterval(15 * 60))
         #expect(next.reps == 1)
         #expect(next.lastReview == start)
     }
@@ -32,7 +33,8 @@ struct FSRSTests {
         let next = fsrs.review(newCard(), rating: .good, now: start)
         #expect(next.state == .learning)
         #expect(next.step == 1)
-        #expect(next.due == start.addingTimeInterval(600))
+        // A same-day check a few hours later.
+        #expect(next.due == start.addingTimeInterval(3 * 3600))
         #expect(abs(next.stability - FSRS.defaultWeights[2]) < 1e-9)
     }
 
@@ -53,7 +55,7 @@ struct FSRSTests {
 
     @Test func againDuringLearningRestartsSteps() {
         let first = fsrs.review(newCard(), rating: .good, now: start)
-        let next = fsrs.review(first, rating: .again, now: start.addingTimeInterval(600))
+        let next = fsrs.review(first, rating: .again, now: first.due)
         #expect(next.state == .learning)
         #expect(next.step == 0)
         #expect(next.stability < first.stability)
@@ -76,7 +78,7 @@ struct FSRSTests {
         #expect(next.lapses == 1)
         #expect(next.stability < card.stability)
         #expect(next.difficulty > card.difficulty)
-        #expect(next.due == card.due.addingTimeInterval(600))
+        #expect(next.due == card.due.addingTimeInterval(15 * 60))
 
         let relearned = fsrs.review(next, rating: .good, now: next.due)
         #expect(relearned.state == .review)
@@ -165,8 +167,18 @@ struct DueTextTests {
     private func later(days: Double) -> Date { now.addingTimeInterval(days * 86_400) }
 
     @Test func sameDayDependsOnTheAnswer() {
-        #expect(DueText.next(now.addingTimeInterval(60), from: now, rating: .again, calendar: calendar) == "again today")
-        #expect(DueText.next(now.addingTimeInterval(600), from: now, rating: .good, calendar: calendar) == "later today")
+        let morning = calendar.startOfDay(for: now).addingTimeInterval(9 * 3600)
+        #expect(DueText.next(morning.addingTimeInterval(15 * 60), from: morning, rating: .again, calendar: calendar) == "next reminder")
+        #expect(DueText.next(morning.addingTimeInterval(3 * 3600), from: morning, rating: .good, calendar: calendar) == "in a few hours")
+        // A card's status, rather than an answer, just says it's later today.
+        #expect(DueText.next(morning.addingTimeInterval(3 * 3600), from: morning, calendar: calendar) == "later today")
+    }
+
+    @Test func aCheckAfterRemindersEndIsTomorrow() {
+        let evening = calendar.startOfDay(for: now).addingTimeInterval(20 * 3600)
+        let reminderEnd = calendar.startOfDay(for: now).addingTimeInterval(21 * 3600)
+        #expect(DueText.next(evening.addingTimeInterval(3 * 3600 - 60), from: evening, rating: .good, reminderEnd: reminderEnd, calendar: calendar) == "tomorrow")
+        #expect(DueText.next(evening.addingTimeInterval(15 * 60), from: evening, rating: .again, reminderEnd: reminderEnd, calendar: calendar) == "next reminder")
     }
 
     @Test func daysWeeksMonthsYears() {
