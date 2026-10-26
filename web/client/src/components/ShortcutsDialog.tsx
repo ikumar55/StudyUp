@@ -8,6 +8,7 @@ const groups: { title: string; shortcuts: [string, string][] }[] = [
       ['N', 'Start a new card (focus Question)'],
       [`${modKey}↩`, 'Add the card and start the next one'],
       ['Tab', 'Question → Answer'],
+      [`${modKey}B`, 'Bold the selected text (again to undo)'],
     ],
   },
   {

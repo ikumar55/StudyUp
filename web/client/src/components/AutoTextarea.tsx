@@ -1,13 +1,15 @@
 import { useCallback, useLayoutEffect, useRef } from 'react'
-import type { Ref, TextareaHTMLAttributes } from 'react'
+import type { KeyboardEvent, Ref, TextareaHTMLAttributes } from 'react'
+import { hasModifier } from '../format.ts'
+import { applyEdit, toggleBold } from '../textEdits.ts'
 
 interface Props extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   value: string
   ref?: Ref<HTMLTextAreaElement>
 }
 
-/** A textarea that grows with its content. */
-export function AutoTextarea({ ref, value, rows = 2, ...props }: Props) {
+/** A textarea that grows with its content. ⌘B makes the selection bold. */
+export function AutoTextarea({ ref, value, rows = 2, onKeyDown, ...props }: Props) {
   const inner = useRef<HTMLTextAreaElement | null>(null)
 
   const setRef = useCallback((element: HTMLTextAreaElement | null) => {
@@ -23,5 +25,15 @@ export function AutoTextarea({ ref, value, rows = 2, ...props }: Props) {
     element.style.height = `${element.scrollHeight + 2}px`
   }, [value])
 
-  return <textarea ref={setRef} value={value} rows={rows} {...props} />
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key.toLowerCase() === 'b' && hasModifier(event) && !event.shiftKey && !event.altKey) {
+      event.preventDefault()
+      const element = event.currentTarget
+      applyEdit(element, toggleBold(element.value, element.selectionStart, element.selectionEnd))
+      return
+    }
+    onKeyDown?.(event)
+  }
+
+  return <textarea ref={setRef} value={value} rows={rows} onKeyDown={handleKeyDown} {...props} />
 }

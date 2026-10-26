@@ -71,6 +71,7 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | Web: take a screenshot (⌘⇧⌃4 copies it), click into Answer, ⌘V: the image appears in the card after adding | |
 | [ ] | Web: drag an image file onto a field; "Image…" picks a file | |
 | [ ] | Web: click an image in a card to see it full size; Esc closes | |
+| [ ] | Web: select a word in Question or Answer (or while editing a card) and press ⌘B: it turns bold; ⌘B again undoes it | |
 | [ ] | The image reaches the phone after a sync, and shows in the study view | |
 | [ ] | iPhone: Edit Card → Add Image picks from Photos; the thumbnail shows, and × removes it | |
 | [ ] | An image added on the phone shows in the web app after a sync | |

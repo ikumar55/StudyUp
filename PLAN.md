@@ -39,9 +39,10 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
    - Incoming timestamps have no upper bound: a phone clock running ahead wins every later edit. Clamp to now + 1 day.
    - The editor API trusts only the remote address: a web page can reach it via DNS rebinding, and `text/plain` POSTs pass as JSON. Check `Host`/`Origin` and require JSON. Add body-size limits (`/pair` reads any size, unauthenticated).
    - (M) A replaced or restored Mac database silently drifts from the phone. Add a database id to `/sync`; when it changes, the phone does a full resync. Needed before restore.
-3. **Restore from a backup.** Backups can be downloaded but not restored yet. A reinstalled app already gets everything back from the Mac on its first sync, so this matters most if the Mac's database is lost.
-4. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
-5. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
+3. **Today's new cards = what fits in today's reminders** (decided 2026-10-26). Reminders already give learning cards and reviews the slots first and new cards only the leftovers; new cards that don't fit wait for a later day without using up the allowance. But Home's "N cards left", the Today screen and Study now still count the full "new cards per day". Make them all use the same number: new cards up to the setting, but only as many as fit in today's reminders. More room comes from raising cards per reminder or reminders per day.
+4. **Restore from a backup.** Backups can be downloaded but not restored yet. A reinstalled app already gets everything back from the Mac on its first sync, so this matters most if the Mac's database is lost.
+5. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
+6. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
 
 ## Phases
 
@@ -91,6 +92,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 **3d: Web UI** (`web/client`, React + Vite) ✅ (2026-10-20, built and checked in headless Chrome; not yet tried in Safari)
 - [x] Folder tree with create, rename, move (menu or drag-and-drop) and delete, plus keyboard navigation
 - [x] Fast card entry (⌘↩ adds the card and returns to Question), inline editing, live Markdown preview, delete with Undo
+- [x] ⌘B bolds the selected text in any card field, and unbolds it if it's already bold (2026-10-26)
 - Bulk paste (`Q:`/`A:` blocks, `question :: answer` lines, tab-separated) was built, then removed on 2026-10-26: rarely needed, and cards are better written one at a time
 - [x] Search across all cards (⌘K); move cards between folders
 - [x] Download a backup (JSON); iPhone pairing panel; live updates when the phone syncs (polls every 3 s)
@@ -154,7 +156,7 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 **Scheduling**
 - **Upgrade to FSRS-6** (S). Two more weights: a trainable forgetting curve, and same-day reviews that help less once a card is well known. Much better at predicting same-day reviews, which are most of ours (benchmark log loss 0.46 → 0.38). Invisible in the UI; existing cards need no migration. The official [swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs) can check our numbers. FSRS-7 (two memory traces, built for same-day reviews) exists but isn't in a stable release yet; revisit when it is.
 - **Fuzz and load balancing** (S). Cards created together stay due on the same days forever (30 cards → all at 4, 14, 44 days). Add standard FSRS fuzz (seeded per card so button labels match), and pick the least busy day within the fuzz range, as Anki does.
-- **Reminders can't carry the day's load** (S–M). At 1 card per reminder and 8 reminders, that's 8 cards a day, but 10 new cards need 20+ reviews on their first day, and the rest quietly pile up. Options: limit new cards to what reminders can carry, or one plain line on Today ("Today's reminders cover 8 of 23 cards"). Needs a decision.
+- **Keep Going past today's new cards** (S). Once new cards are limited to what fits in reminders (Next up #3), a session's Keep Going could offer a few extra new cards on days you want to study more. Their same-day checks would then compete for reminder slots.
 - **Keep cloze siblings apart** (M). Cards from one cloze sentence give away each other's answers, and today they arrive in back-to-back reminders. Needs an optional `noteID` on cards (mirrored in `protocol.ts`), then at most one sibling per day.
 - **Cards that keep failing** (S). After ~6–8 lapses, stop putting the card in reminders and list it as "Cards to rewrite" in the web editor. `lapses` already syncs.
 - **Optimize FSRS weights on the Mac** (M; Phase 4 item). The Mac already has every review log. `@open-spaced-repetition/binding` runs the official optimizer in Node; send the weights to the phone as a synced record. Re-run when the review count doubles; no button.
