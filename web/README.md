@@ -14,6 +14,8 @@ open http://localhost:8787
 ./scripts/uninstall-service.sh   # stop it and remove it from login (your cards are kept)
 ```
 
+The installed service runs on its own (launchd): it starts at login, restarts if it crashes, and doesn't need VS Code or a terminal open. If the editor won't load, run `install-service.sh` again and check `~/Library/Logs/StudyUp/server.log`.
+
 To pair your iPhone: in the editor, click **Pair an iPhone**. Then, in the app, go to **Settings → Sync with Mac**, choose your Mac, and enter the code. After that, the phone syncs whenever you open or leave the app while it's on the same Wi-Fi as the Mac.
 
 ## Development
@@ -27,7 +29,7 @@ npm run typecheck
 npm run build         # editor → client/dist, served by the server
 ```
 
-To use a throwaway database, set `STUDYUP_DB=/path/to/test.db` (and `PORT=…`) when starting the server.
+To use a throwaway database, set `STUDYUP_DB=/path/to/test.db` (and `PORT=…`) when starting the server. Without them, `dev:server` uses your real database and port 8787, which the installed service already holds: stop it first (`uninstall-service.sh`), or pass a different `PORT` and `STUDYUP_DB`.
 
 End-to-end sync test with the iPhone simulator:
 
