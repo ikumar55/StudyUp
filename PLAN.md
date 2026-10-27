@@ -35,7 +35,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 1. **Test on the iPhone** using TESTING.md. Most features have only been checked on the simulator and the Mac.
 2. **Restore from a backup.** The Mac now keeps daily snapshots (`backups/`) and the JSON download, but neither can be restored from the editor yet. A restore must give the database a new `databaseId`, so the phone sends everything it has. A reinstalled app already gets everything back from the Mac on its first sync, so this matters most if the Mac's database is lost.
 3. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
-4. Then: search and move on the phone, stats, and pausing folders (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
+4. Then: **Pause and Focus folders** (design under To consider → iPhone app), search and move on the phone, stats (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
 
 ## Phases
 
@@ -105,7 +105,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - Shared code: `Shared/` is compiled into both the app and the notification extension (card parser, math, code colors)
 - [ ] Search and move cards on the phone too
 - [ ] Stats: reviews per day, retention per folder, streak
-- [ ] Include or exclude folders from reminders; pause a folder
+- [ ] Include or exclude folders from notifications; pause a folder → designed as **Pause and Focus** (To consider → iPhone app)
 
 ### Phase 3.6: Feedback from the first simulator run (2026-10-21)
 - [x] Removed "Add and Start Next Card"; Add saves and closes
@@ -180,6 +180,14 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 - **Home says why there are no reminders** (S). With notifications denied in iOS Settings, Home says "Notifications are off" although the toggle is on.
 
 **iPhone app**
+- **Pause and Focus folders** (M; designed and agreed 2026-10-26). Two options in a folder's ⋯ menu on the phone:
+  - **Pause:** the folder's cards (subfolders included) stop coming up: not in notifications, Home's Study now, or the "cards left" counts. The folder row shows "Paused"; **Resume** brings it back. A paused folder starts no new cards.
+  - **Focus on This Folder:** the opposite: only this folder's cards come up (notifications, Study now, counts, new cards) until you stop. Home shows one line, "Focusing on OS Fundamentals · Stop", so it isn't forgotten. One focus at a time.
+  - A folder's own Study now keeps working either way (a paused folder can still be studied on purpose).
+  - Both go through the one place that decides which cards count (`StudyQueue` candidates), so notifications, Study now, counts and the new-cards-that-fit limit all agree.
+  - Schedules don't change while paused or out of focus. Cards that fell due meanwhile come back together on resume; FSRS handles the extra elapsed time correctly. Fine for days of exam prep; a long focus means a catch-up after.
+  - Stored on the phone only at first (a set of folder sync ids in UserDefaults; focus as one id), so no protocol change. Showing or changing them in the web editor would mean a synced folder field, mirrored in `protocol.ts` / `SyncProtocol.swift`.
+  - TESTING.md rows to add when built: pausing removes the folder's cards from notifications and counts; resume brings them back; focus limits notifications to one folder; the Home focus line stops it.
 - **New Card from Home** (S–M). Adding a card takes Home → topic → folder → + → New Card. A Home button (last-used folder, with a folder picker in the editor) plus a long-press app-icon shortcut.
 - **Undo the last grade** (S–M). A mis-tapped Wrong can't be taken back.
 - **Accessibility** (S). The three grade buttons truncate at large text sizes (stack them); inline math has no VoiceOver label.
