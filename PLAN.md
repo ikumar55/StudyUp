@@ -168,6 +168,13 @@ Found on the phone on 2026-10-26: in the evening Home said "Today: 3 cards left"
 - [x] A folder's own Study now still works when paused or out of focus ("Go through this folder's cards now")
 - [x] Schedules don't change; cards that fell due meanwhile come back together. Stored on the phone only (folder sync ids in UserDefaults), so no protocol change; deleted folders are forgotten, so a focus on a deleted folder can't hide everything
 
+### Phase 3.14: Small fixes and the folder path (2026-10-27)
+- [x] **Folder path on the phone:** inside a subfolder, the folders above it show in small type above the name ("OS Fundamentals ›"), as in the web editor; tapping one goes back to it. The folder screen draws its own large title (the bar shows the name once it scrolls away), since iOS 26's `.largeTitle` toolbar slot showed collapsed on push and its buttons couldn't be tapped
+- [x] **Web: Esc or Cancel asks before discarding an edited card** ("Discard your changes?" · Keep Editing / Discard), as the phone does; with nothing changed it closes right away
+- [x] **A card answered from a notification while open in a study session is graded once,** not twice
+- [x] Home says "Notifications are off in iOS Settings" when permission was turned off there (it said "Notifications are off" with the toggle on)
+- [x] "Delete Folder and 1 Card" (was "1 Cards"; just "Delete Folder" when empty); topics on Home sort like subfolders ("ml" no longer after "OS"); Send a Test Notification says when iOS Settings blocks it instead of "Add a card first."
+
 ### Phase 4: Nice to have
 - [x] App icon (2026-10-26): two stacked cards with a rising line, matching the web editor's favicon; light, dark and tinted versions. Drawn by `scripts/make-app-icon.swift`
 - [ ] Home-screen widget showing the next due card
@@ -193,7 +200,6 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 - **Ease off when reminders are ignored** (S–M). If the last few got no answer and no app open, space the next ones further apart; back to normal after any answer. No guilt messages.
 - **"Show Answer" button on the notification** (S–M). Sends the answer as a follow-up notification with the grade buttons, so it works on an Apple Watch and without a long-press.
 - **Reminder hours past midnight, and a 4 AM day boundary** (M). "Until 1:00 AM" currently turns reminders off entirely, and a 00:30 session counts toward the next day.
-- **Home says why there are no reminders** (S). With notifications denied in iOS Settings, Home says "Notifications are off" although the toggle is on.
 
 **iPhone app**
 - ~~Pause and Focus folders~~: built 2026-10-27 (Phase 3.13). Showing or changing them in the web editor would need a synced folder field, mirrored in `protocol.ts` / `SyncProtocol.swift`.
@@ -209,12 +215,11 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 - **"Often missed" filter** (S): cards with many lapses, to rewrite or split.
 - **Multi-select** (M): ⇧/⌘-click several cards to move or delete them.
 - **Duplicate warning** (S): a hint when a new question matches an existing one.
-- **Confirm before discarding an inline edit** (S); Esc currently drops changes silently.
 - **"Recently deleted"** (M): possible now that deletes from the phone keep their text on the Mac.
 
 **Known issues** (smaller, from the same review)
 - A card added or edited on the phone inside a folder deleted on the Mac (before the next sync) is lost on the phone.
-- An open study session or card editor can hold a card that a sync just deleted; a card graded from a notification while shown in a session gets graded twice.
+- An open study session or card editor can hold a card that a sync just deleted.
 - A crash-corrupted database leaves the server restarting every 10 s with no clear message.
 - Editor: a quick-add draft holding a pasted image, saved more than 7 days later, has a broken image; leftover `*.partial` image files are never cleaned up.
 - `npm start` / `npm run dev:server` default to the real database and port 8787.

@@ -60,19 +60,21 @@ interface ConfirmProps {
   title: string
   message: ReactNode
   confirmLabel: string
+  /** The safe choice; "Cancel" unless given. */
+  cancelLabel?: string
   destructive?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
 
-export function ConfirmDialog({ title, message, confirmLabel, destructive, onConfirm, onCancel }: ConfirmProps) {
+export function ConfirmDialog({ title, message, confirmLabel, cancelLabel = 'Cancel', destructive, onConfirm, onCancel }: ConfirmProps) {
   return (
     <Dialog title={title} onClose={onCancel} className="dialog-narrow">
       <div className="confirm-message">{message}</div>
       <footer className="dialog-footer">
         {/* For destructive actions the safe choice gets focus, so a stray Return doesn't delete. */}
         <button type="button" className="button" onClick={onCancel} data-autofocus={destructive ? true : undefined}>
-          Cancel
+          {cancelLabel}
         </button>
         <button
           type="button"

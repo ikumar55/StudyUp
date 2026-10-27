@@ -12,12 +12,20 @@ final class StudySession: Identifiable {
     private(set) var moreDueCount = 0
     private let fsrs: FSRS
     private var refill: (() -> [Card])?
+    /// Each card's review count when the session took it, so a card answered meanwhile from a
+    /// notification isn't graded a second time here.
+    private var repsWhenQueued: [ObjectIdentifier: Int]
 
     init(title: String, cards: [Card], fsrs: FSRS, refill: (() -> [Card])? = nil) {
         self.title = title
         self.queue = cards
         self.fsrs = fsrs
         self.refill = refill
+        repsWhenQueued = Self.reps(of: cards)
+    }
+
+    private static func reps(of cards: [Card]) -> [ObjectIdentifier: Int] {
+        Dictionary(cards.map { (ObjectIdentifier($0), $0.reps) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Builds a session from the cards currently due in `scope`, respecting the daily new-card limit.
@@ -63,7 +71,9 @@ final class StudySession: Identifiable {
 
     func grade(_ rating: Rating, context: ModelContext, now: Date = .now) {
         guard let card = queue.first else { return }
-        card.record(rating, fsrs: fsrs, context: context, now: now)
+        if card.reps == repsWhenQueued[ObjectIdentifier(card)] {
+            card.record(rating, fsrs: fsrs, context: context, now: now)
+        }
         // Each card is shown once per session; one you get wrong comes back in the next reminder.
         queue.removeFirst()
         reviewedCount += 1
@@ -76,6 +86,7 @@ final class StudySession: Identifiable {
     func keepGoing() {
         guard let refill else { return }
         queue = refill()
+        repsWhenQueued = Self.reps(of: queue)
         self.refill = nil
         moreDueCount = 0
     }

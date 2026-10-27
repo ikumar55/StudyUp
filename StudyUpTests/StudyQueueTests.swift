@@ -138,6 +138,17 @@ struct StudyQueueTests {
         #expect(newCardsThatFit(at: 22, enabled: false) == 10)
     }
 
+    @Test func aCardAnsweredFromANotificationDuringASessionIsGradedOnce() {
+        let card = makeCard("new")
+        let session = StudySession(title: "Test", cards: [card], fsrs: FSRS())
+        // The same card is answered from its notification while the session shows it.
+        card.record(.good, fsrs: FSRS(), context: context, now: now)
+        session.grade(.again, context: context, now: now)
+        #expect(card.reps == 1)
+        #expect(card.reviewLogs.count == 1)
+        #expect(session.current == nil)
+    }
+
     @Test func aSessionShowsEachCardOnce() {
         let card = makeCard("new")
         let other = makeCard("other")

@@ -200,6 +200,26 @@ final class StudyUpUITests: XCTestCase {
     }
 
     @MainActor
+    func testSubfolderShowsThePathAboveIt() throws {
+        let app = XCUIApplication()
+        launch(app)
+        app.buttons["Add Sample Cards"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'OS Fundamentals'")).firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["OS Fundamentals"].waitForExistence(timeout: 5))
+        attachScreenshot("21-topic", app)
+        // A topic has nothing above it.
+        XCTAssertFalse(app.descendants(matching: .any)["folderPath"].exists)
+
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Memory'")).firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Memory"].waitForExistence(timeout: 5))
+        attachScreenshot("22-folder-path", app)
+
+        app.descendants(matching: .any)["folderPath"].buttons["OS Fundamentals"].tap()
+        XCTAssertTrue(app.navigationBars["OS Fundamentals"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Memory"].exists)
+    }
+
+    @MainActor
     func testSyncScreenShowsPairingSteps() throws {
         let app = XCUIApplication()
         launch(app)

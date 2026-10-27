@@ -59,6 +59,8 @@ struct TodaySummaryRow: View {
     let cardsLeft: Int
     let upcoming: [PlannedReminder]
     let remindersEnabled: Bool
+    /// Notification permission was turned off for StudyUp in iOS Settings.
+    var isBlockedInSettings = false
     let nextReminder: Date?
 
     var body: some View {
@@ -79,7 +81,7 @@ struct TodaySummaryRow: View {
     }
 
     private var detail: String {
-        guard remindersEnabled else { return "Notifications are off" }
+        guard remindersEnabled else { return isBlockedInSettings ? "Notifications are off in iOS Settings" : "Notifications are off" }
         if let next = upcoming.first {
             // Reads on from the line above: "Today: 3 cards left / Over 2 notifications · next at 5:15 PM".
             let time = next.fireDate.formatted(date: .omitted, time: .shortened)
@@ -196,11 +198,19 @@ struct DeleteFolderConfirmation: ViewModifier {
             titleVisibility: .visible,
             presenting: folder
         ) { folder in
-            Button("Delete Folder and \(folder.allCards.count) Cards", role: .destructive) {
+            Button(deleteLabel(folder.allCards.count), role: .destructive) {
                 context.deleteSyncing(folder)
             }
         } message: { _ in
             Text("All subfolders, cards and review history inside it will be deleted.")
+        }
+    }
+
+    private func deleteLabel(_ cardCount: Int) -> String {
+        switch cardCount {
+        case 0: "Delete Folder"
+        case 1: "Delete Folder and 1 Card"
+        default: "Delete Folder and \(cardCount) Cards"
         }
     }
 }

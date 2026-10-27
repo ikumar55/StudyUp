@@ -38,7 +38,8 @@ struct SettingsView: View {
                         Button("Send a Test Notification", systemImage: "bell") {
                             Task {
                                 let sent = await scheduler.sendTestReminder(context: context)
-                                testReminderMessage = sent ? "Sent. It arrives in 5 seconds." : "Add a card first."
+                                testReminderMessage = sent ? "Sent. It arrives in 5 seconds."
+                                    : scheduler.canSchedule ? "Add a card first." : "Notifications are off for StudyUp in iOS Settings."
                             }
                         }
                     } footer: {

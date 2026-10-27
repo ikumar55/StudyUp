@@ -175,6 +175,7 @@ function CardEditor({ card, focus, actions, onDone }: EditorProps) {
   const [front, setFront] = useState(card.front)
   const [back, setBack] = useState(card.back)
   const [saving, setSaving] = useState(false)
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const frontRef = useRef<HTMLTextAreaElement>(null)
   const backRef = useRef<HTMLTextAreaElement>(null)
   const frontImages = useImageInsertion(frontRef, setFront)
@@ -193,9 +194,14 @@ function CardEditor({ card, focus, actions, onDone }: EditorProps) {
     requestAnimationFrame(() => document.getElementById(`card-${card.id}`)?.focus())
   }
 
+  const hasChanges = front.trim() !== card.front || back.trim() !== card.back
+
+  /** Esc and Cancel ask before throwing away an edit, as the iPhone does. */
+  const cancel = () => (hasChanges ? setConfirmingDiscard(true) : close())
+
   const save = async () => {
     if (saving || uploading) return
-    if (front.trim() === card.front && back.trim() === card.back) return close()
+    if (!hasChanges) return close()
     if (!front.trim() || !back.trim()) {
       ;(front.trim() ? backRef : frontRef).current?.focus()
       return
@@ -213,45 +219,59 @@ function CardEditor({ card, focus, actions, onDone }: EditorProps) {
     } else if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
-      close()
+      cancel()
     }
   }
 
   return (
-    <div className="card-editor" onKeyDown={onKeyDown}>
-      <label className="field-label" htmlFor={`edit-front-${card.id}`}>Question</label>
-      <AutoTextarea
-        id={`edit-front-${card.id}`}
-        ref={frontRef}
-        className="field-input"
-        rows={1}
-        value={front}
-        onChange={(event) => setFront(event.target.value)}
-        onPaste={frontImages.onPaste}
-        onDragOver={frontImages.onDragOver}
-        onDrop={frontImages.onDrop}
-      />
-      <label className="field-label" htmlFor={`edit-back-${card.id}`}>Answer</label>
-      <AutoTextarea
-        id={`edit-back-${card.id}`}
-        ref={backRef}
-        className="field-input"
-        rows={2}
-        value={back}
-        onChange={(event) => setBack(event.target.value)}
-        onPaste={backImages.onPaste}
-        onDragOver={backImages.onDragOver}
-        onDrop={backImages.onDrop}
-      />
-      <div className="card-editor-footer">
-        <span className="quick-hint">
-          {uploading ? 'Uploading image…' : <><kbd>{modKey}↩</kbd> save · <kbd>Esc</kbd> cancel · paste images with <kbd>{modKey}V</kbd></>}
-        </span>
-        <button type="button" className="button" onClick={close}>Cancel</button>
-        <button type="button" className="button button-primary" disabled={saving || uploading} onClick={() => void save()}>
-          Save
-        </button>
+    <>
+      <div className="card-editor" onKeyDown={onKeyDown}>
+        <label className="field-label" htmlFor={`edit-front-${card.id}`}>Question</label>
+        <AutoTextarea
+          id={`edit-front-${card.id}`}
+          ref={frontRef}
+          className="field-input"
+          rows={1}
+          value={front}
+          onChange={(event) => setFront(event.target.value)}
+          onPaste={frontImages.onPaste}
+          onDragOver={frontImages.onDragOver}
+          onDrop={frontImages.onDrop}
+        />
+        <label className="field-label" htmlFor={`edit-back-${card.id}`}>Answer</label>
+        <AutoTextarea
+          id={`edit-back-${card.id}`}
+          ref={backRef}
+          className="field-input"
+          rows={2}
+          value={back}
+          onChange={(event) => setBack(event.target.value)}
+          onPaste={backImages.onPaste}
+          onDragOver={backImages.onDragOver}
+          onDrop={backImages.onDrop}
+        />
+        <div className="card-editor-footer">
+          <span className="quick-hint">
+            {uploading ? 'Uploading image…' : <><kbd>{modKey}↩</kbd> save · <kbd>Esc</kbd> cancel · paste images with <kbd>{modKey}V</kbd></>}
+          </span>
+          <button type="button" className="button" onClick={cancel}>Cancel</button>
+          <button type="button" className="button button-primary" disabled={saving || uploading} onClick={() => void save()}>
+            Save
+          </button>
+        </div>
       </div>
-    </div>
+      {/* Outside the editor, so its keys (Esc, ⌘↩) don't reach the editor's handler. */}
+      {confirmingDiscard && (
+        <ConfirmDialog
+          title="Discard your changes?"
+          message="Your edits to this card haven’t been saved."
+          confirmLabel="Discard"
+          cancelLabel="Keep Editing"
+          destructive
+          onConfirm={close}
+          onCancel={() => setConfirmingDiscard(false)}
+        />
+      )}
+    </>
   )
 }

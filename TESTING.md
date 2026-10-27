@@ -180,6 +180,17 @@ With the default hours (9 AM – 9 PM, up to 8 a day) the last notification is a
 | [ ] | The Pause / Focus options are also in the + menu inside a folder | |
 | [ ] | Pause and focus survive quitting and reopening the app; deleting a focused folder brings everything else back | |
 
+## Phase 3.14: Small fixes and the folder path
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Open a topic, then a subfolder: "Topic ›" shows in small grey type above the big name; tapping it goes back to the topic. Three levels deep, both folders above show | |
+| [ ] | A topic and a subfolder have the same gap between the big name and Study now. Scroll down: the name moves into the bar; scroll back up: it leaves the bar | |
+| [ ] | Web: edit a card, press Esc: "Discard your changes?" appears; Keep Editing (or Esc again) keeps your text; Discard drops it. Without changes, Esc just closes | |
+| [ ] | Open a study session, then answer the same card from its notification (long-press) and grade it in the session too: its Reviews count goes up by one | |
+| [ ] | Turn notifications off for StudyUp in iOS Settings: Home says "Notifications are off in iOS Settings" | |
+| [ ] | Deleting a folder with one card says "Delete Folder and 1 Card" | |
+
 ## App icon
 
 | ✓ | Test | Notes |

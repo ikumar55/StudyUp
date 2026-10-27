@@ -21,7 +21,7 @@ struct HomeView: View {
         // Cards in paused folders, or outside the focused ones, don't come up here.
         let comingUp = allCards.filter(FolderModes.shared.includes)
         let leftToday = StudyQueue.leftToday(from: comingUp, newLimit: remainingNew)
-        NavigationStack {
+        NavigationStack(path: $presenter.folderPath) {
             List {
                 if !allCards.isEmpty {
                     Section {
@@ -32,6 +32,7 @@ struct HomeView: View {
                                 cardsLeft: leftToday.count,
                                 upcoming: scheduler.upcomingToday,
                                 remindersEnabled: remindersEnabled && scheduler.canSchedule,
+                                isBlockedInSettings: remindersEnabled && scheduler.authorizationStatus == .denied,
                                 nextReminder: scheduler.nextReminderDate
                             )
                         }
@@ -60,7 +61,8 @@ struct HomeView: View {
                 }
                 if !topics.isEmpty {
                     Section("Topics") {
-                        ForEach(topics) { topic in
+                        // Sorted like subfolders, so "ml" doesn't land after "OS".
+                        ForEach(topics.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) { topic in
                             NavigationLink(value: topic) {
                                 FolderRow(folder: topic, dueCount: topic.allCards.count { leftToday.contains(ObjectIdentifier($0)) })
                             }
