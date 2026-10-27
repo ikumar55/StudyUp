@@ -128,6 +128,12 @@ struct StudyQueueTests {
         #expect(newCardsThatFit(at: 13, alreadySent: 6) == 1, "2 reminders left today")
     }
 
+    /// A new card's same-day check comes 3 hours later, so it must start by 5:15 PM to be checked at 8:15 PM.
+    @Test func newCardsStopStartingWhenTheirCheckWouldMissTheLastReminder() {
+        #expect(newCardsThatFit(at: 16) == 1, "5:15 PM is the only reminder left early enough")
+        #expect(newCardsThatFit(at: 17.5) == 0, "two reminders left, but too late for a check")
+    }
+
     @Test func withRemindersOffTheDailySettingApplies() {
         #expect(newCardsThatFit(at: 22, enabled: false) == 10)
     }

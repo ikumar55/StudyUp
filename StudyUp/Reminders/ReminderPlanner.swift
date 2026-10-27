@@ -7,6 +7,12 @@ nonisolated enum ReminderPlanner {
         var id: ID
         /// The earliest moment the card is worth reviewing (e.g. a learning step's due time).
         var availableAt: Date
+        /// The latest reminder the card may go in, if any (a new card needs room for its same-day check).
+        var latestAt: Date? = nil
+
+        func fits(_ slot: Date) -> Bool {
+            availableAt <= slot && latestAt.map { slot <= $0 } ?? true
+        }
     }
 
     struct Reminder<ID: Hashable>: Equatable {
@@ -28,13 +34,23 @@ nonisolated enum ReminderPlanner {
         return (0..<settings.maxPerDay).map { windowStart.addingTimeInterval(spacing * (Double($0) + 0.5)) }
     }
 
-    /// How many cards the day's reminders still ahead of `now` can carry, all told.
+    /// How long after a new card is first answered Right it comes back for its same-day check.
+    static let newCardCheckDelay: TimeInterval = FSRS.defaultLearningSteps.dropFirst().first ?? 0
+
+    /// The last reminder a new card can start in, leaving a later one for its same-day check.
+    static func latestNewCardStart(dayStart: Date, settings: ReminderSettings, calendar: Calendar = .current) -> Date? {
+        slots(dayStart: dayStart, settings: settings, calendar: calendar).last?.addingTimeInterval(-newCardCheckDelay)
+    }
+
+    /// How many cards the day's reminders still ahead of `now` (and no later than `until`) can carry, all told.
     static func capacity(
-        dayStart: Date, now: Date, settings: ReminderSettings, alreadySent: Int = 0, calendar: Calendar = .current
+        dayStart: Date, now: Date, settings: ReminderSettings, alreadySent: Int = 0, until: Date? = nil,
+        calendar: Calendar = .current
     ) -> Int {
         guard settings.isEnabled else { return 0 }
         let earliest = now.addingTimeInterval(minimumLeadTime)
-        let slotsLeft = slots(dayStart: dayStart, settings: settings, calendar: calendar).filter { $0 >= earliest }.count
+        let slotsLeft = slots(dayStart: dayStart, settings: settings, calendar: calendar)
+            .filter { slot in slot >= earliest && until.map { slot <= $0 } ?? true }.count
         return max(min(slotsLeft, settings.maxPerDay - alreadySent), 0) * max(settings.cardsPerReminder, 0)
     }
 
@@ -57,15 +73,23 @@ nonisolated enum ReminderPlanner {
         var reminders: [Reminder<ID>] = []
         var nextSlot = 0
         for index in 0..<count {
-            // Spread the reminders evenly over the remaining slots...
-            let target = max(Int((Double(index) + 0.5) * Double(slots.count) / Double(count)), nextSlot)
-            // ...but if nothing is ready by then (e.g. a card being learned), use the first slot after it is.
             let unused = candidates.filter { !used.contains($0.id) }
+            // Spread the reminders evenly over the remaining slots...
+            var target = max(Int((Double(index) + 0.5) * Double(slots.count) / Double(count)), nextSlot)
+            // ...keeping the ones for cards with a latest time (new cards, which come last in study order
+            // and so fill the last reminders) early enough for each to get a slot in time...
+            let limited = nextSlot < slots.count ? unused.filter { $0.latestAt.map { slots[nextSlot] <= $0 } ?? false } : []
+            if let latest = limited.compactMap(\.latestAt).min(), let lastFit = slots.lastIndex(where: { $0 <= latest }) {
+                let limitedReminders = (limited.count + settings.cardsPerReminder - 1) / settings.cardsPerReminder
+                let isLimited = limitedReminders >= count - index
+                target = min(target, max(lastFit - limitedReminders + (isLimited ? 1 : 0), nextSlot))
+            }
+            // ...but if nothing is ready by then (e.g. a card being learned), use the first slot after it is.
             guard target < slots.count,
-                  let slot = (target..<slots.count).first(where: { slot in unused.contains { $0.availableAt <= slots[slot] } })
+                  let slot = (target..<slots.count).first(where: { slot in unused.contains { $0.fits(slots[slot]) } })
             else { break }
             let cardIDs = unused
-                .filter { $0.availableAt <= slots[slot] }
+                .filter { $0.fits(slots[slot]) }
                 .prefix(settings.cardsPerReminder)
                 .map(\.id)
             used.formUnion(cardIDs)

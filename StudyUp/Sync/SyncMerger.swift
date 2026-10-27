@@ -120,6 +120,7 @@ enum SyncMerger {
         }
         for record in response.folders where record.deleted {
             guard let folder = folders[record.id], record.updatedAt >= (folder.updatedAt ?? .distantPast) else { continue }
+            FolderModes.shared.forget(folder.allFolders.compactMap(\.syncID))
             context.delete(folder)
             folders[record.id] = nil
             changed = true

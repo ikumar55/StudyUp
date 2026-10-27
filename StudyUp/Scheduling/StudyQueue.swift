@@ -2,25 +2,24 @@ import Foundation
 import SwiftData
 
 enum StudyScope {
+    /// Every card that comes up: not in a paused folder, and in a focused one if any are focused.
     case all
+    /// A folder's cards, paused or not, for studying it on purpose.
     case folder(Folder)
 }
 
 /// Decides which cards are ready to study right now.
 enum StudyQueue {
-
-    struct Counts {
-        var learning = 0
-        var review = 0
-        var new = 0
-        var total: Int { learning + review + new }
-    }
-
     static func cards(in scope: StudyScope, context: ModelContext) -> [Card] {
         switch scope {
-        case .all: (try? context.fetch(FetchDescriptor<Card>())) ?? []
+        case .all: comingUp(context: context)
         case .folder(let folder): folder.allCards
         }
+    }
+
+    /// The cards that come up in notifications, Home's Study now and the counts (see `FolderModes`).
+    static func comingUp(context: ModelContext) -> [Card] {
+        ((try? context.fetch(FetchDescriptor<Card>())) ?? []).filter(FolderModes.shared.includes)
     }
 
     /// Learning cards first, then reviews due today, then new cards up to `newLimit`.
@@ -73,16 +72,6 @@ enum StudyQueue {
             + new.prefix(max(newLimit, 0)).map { ($0, dayStart) }
     }
 
-    static func counts(for queue: [Card]) -> Counts {
-        queue.reduce(into: Counts()) { counts, card in
-            switch card.state {
-            case .new: counts.new += 1
-            case .review: counts.review += 1
-            case .learning, .relearning: counts.learning += 1
-            }
-        }
-    }
-
     /// New cards the user has already started today, across all folders.
     static func newCardsStudiedToday(context: ModelContext, now: Date = .now, calendar: Calendar = .current) -> Int {
         let startOfDay = calendar.startOfDay(for: now)
@@ -99,16 +88,35 @@ enum StudyQueue {
 
     /// New cards to bring in on a day: up to `remaining` (what's left of the daily setting), but only
     /// as many as that day's remaining reminders can carry after the cards already due. Each new card
-    /// takes two places, since it comes back for a check a few hours after it's first seen. The rest
-    /// wait for a day with room. With reminders off there's no reminder limit.
+    /// takes two places, since it comes back for a check a few hours after it's first seen, and must
+    /// start early enough for that check to come before the day's last reminder. The rest wait for a
+    /// day with room. With reminders off there's no reminder limit.
     static func newCardsThatFit(
         remaining: Int, cards: [Card], dayStart: Date, now: Date, settings: ReminderSettings,
         alreadySent: Int = 0, calendar: Calendar = .current
     ) -> Int {
         guard settings.isEnabled else { return remaining }
         let capacity = ReminderPlanner.capacity(dayStart: dayStart, now: now, settings: settings, alreadySent: alreadySent, calendar: calendar)
+        let startCapacity = ReminderPlanner.capacity(
+            dayStart: dayStart, now: now, settings: settings, alreadySent: alreadySent,
+            until: ReminderPlanner.latestNewCardStart(dayStart: dayStart, settings: settings, calendar: calendar) ?? dayStart,
+            calendar: calendar
+        )
         let alreadyDue = reminderCandidates(from: cards, dayStart: dayStart, newLimit: 0, calendar: calendar).count
-        return min(remaining, max(capacity - alreadyDue, 0) / 2)
+        return min(remaining, max(capacity - alreadyDue, 0) / 2, max(startCapacity - alreadyDue, 0))
+    }
+
+    /// The cards still to come today, which Home's "Today: N cards left" and the folder badges count.
+    /// Cards reach you in notifications, so these are the cards in today's remaining ones; a card due
+    /// after the last one comes in tomorrow's first. With notifications off, every card due before midnight.
+    static func leftToday(from cards: [Card], newLimit: Int, now: Date = .now) -> Set<ObjectIdentifier> {
+        let scheduler = ReminderScheduler.shared
+        if ReminderSettings.load().isEnabled, scheduler.canSchedule {
+            let planned = Set(scheduler.upcomingToday.flatMap(\.cardIDs))
+            return Set(cards.filter { $0.syncID.map(planned.contains) ?? false }.map(ObjectIdentifier.init))
+        }
+        let dayStart = Calendar.current.startOfDay(for: now)
+        return Set(reminderCandidates(from: cards, dayStart: dayStart, newLimit: newLimit).map { ObjectIdentifier($0.card) })
     }
 
     /// Today's new cards, the same number everywhere: Home, Study now, and the reminder plan.
@@ -118,7 +126,7 @@ enum StudyQueue {
         // Without permission to send reminders, they can't limit anything.
         guard scheduler.canSchedule else { return remaining }
         return newCardsThatFit(
-            remaining: remaining, cards: (try? context.fetch(FetchDescriptor<Card>())) ?? [],
+            remaining: remaining, cards: comingUp(context: context),
             dayStart: Calendar.current.startOfDay(for: now), now: now, settings: ReminderSettings.load(),
             alreadySent: scheduler.sentToday.count
         )

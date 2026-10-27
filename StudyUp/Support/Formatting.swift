@@ -2,18 +2,19 @@ import SwiftUI
 
 nonisolated enum DueText {
     /// When a card comes back, in plain words. For an answer: Wrong → "next notification"; a same-day check
-    /// → "in a few hours" (or "tomorrow" if that's after `reminderEnd`); otherwise "tomorrow",
-    /// "in 4 days", "in 3 weeks", "in 2 months", "in 1.5 years". Without a rating (a card's status)
-    /// a same-day time reads "later today". Exact minutes and hours don't matter to the person studying.
+    /// → "in a few hours", or "tomorrow" if it's due after `lastReminder` (the day's last notification),
+    /// since that's when a notification brings it; otherwise "tomorrow", "in 4 days", "in 3 weeks",
+    /// "in 2 months", "in 1.5 years". Without a rating (a card's status) a same-day time reads
+    /// "later today". Exact minutes and hours don't matter to the person studying.
     static func next(
-        _ due: Date, from now: Date = .now, rating: Rating? = nil, reminderEnd: Date? = nil, calendar: Calendar = .current
+        _ due: Date, from now: Date = .now, rating: Rating? = nil, lastReminder: Date? = nil, calendar: Calendar = .current
     ) -> String {
         let sameDay = due <= now || calendar.isDate(due, inSameDayAs: now)
         if rating == .again, sameDay || due < calendar.startOfDay(for: now).addingTimeInterval(2 * 86_400) {
             return "next notification"
         }
         if sameDay {
-            if let reminderEnd, due > reminderEnd { return "tomorrow" }
+            if let lastReminder, due > lastReminder { return "tomorrow" }
             return rating == nil ? "later today" : "in a few hours"
         }
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: due)).day ?? 0
@@ -26,6 +27,12 @@ nonisolated enum DueText {
             let years = (Double(days) / 365 * 10).rounded() / 10
             return years == 1 ? "in 1 year" : "in \(years.formatted()) years"
         }
+    }
+
+    /// A card's status ("later today", "tomorrow", "in 4 days"), going by when a notification brings
+    /// it: a card due after today's last notification comes tomorrow.
+    static func comesBack(_ due: Date, now: Date = .now) -> String {
+        next(due, from: now, lastReminder: ReminderSettings.load().lastReminder(on: now))
     }
 }
 

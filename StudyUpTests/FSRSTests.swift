@@ -224,11 +224,20 @@ struct DueTextTests {
         #expect(DueText.next(morning.addingTimeInterval(3 * 3600), from: morning, calendar: calendar) == "later today")
     }
 
-    @Test func aCheckAfterRemindersEndIsTomorrow() {
-        let evening = calendar.startOfDay(for: now).addingTimeInterval(20 * 3600)
-        let reminderEnd = calendar.startOfDay(for: now).addingTimeInterval(21 * 3600)
-        #expect(DueText.next(evening.addingTimeInterval(3 * 3600 - 60), from: evening, rating: .good, reminderEnd: reminderEnd, calendar: calendar) == "tomorrow")
-        #expect(DueText.next(evening.addingTimeInterval(15 * 60), from: evening, rating: .again, reminderEnd: reminderEnd, calendar: calendar) == "next notification")
+    /// A check due after the day's last notification (8:15 PM) arrives in tomorrow's first one,
+    /// even though it's due before the notification hours end at 9 PM.
+    @Test func aCheckAfterTheLastNotificationIsTomorrow() {
+        let today = calendar.startOfDay(for: now)
+        let lastReminder = today.addingTimeInterval(20.25 * 3600)
+        let at = { (hour: Double) in today.addingTimeInterval(hour * 3600) }
+        // Right at 5:59 PM: the 3-hour check is due at 8:59 PM, after the last notification.
+        #expect(DueText.next(at(20.98), from: at(17.98), rating: .good, lastReminder: lastReminder, calendar: calendar) == "tomorrow")
+        // Right at 5:00 PM: due at 8:00 PM, in time for the 8:15 PM notification.
+        #expect(DueText.next(at(20), from: at(17), rating: .good, lastReminder: lastReminder, calendar: calendar) == "in a few hours")
+        #expect(DueText.next(at(20.97), from: at(20.72), rating: .again, lastReminder: lastReminder, calendar: calendar) == "next notification")
+        // A card's status says the same.
+        #expect(DueText.next(at(20.98), from: at(18), lastReminder: lastReminder, calendar: calendar) == "tomorrow")
+        #expect(DueText.next(at(20), from: at(18), lastReminder: lastReminder, calendar: calendar) == "later today")
     }
 
     @Test func daysWeeksMonthsYears() {

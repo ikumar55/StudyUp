@@ -31,7 +31,6 @@ final class ReminderScheduler {
     var upcomingToday: [PlannedReminder] {
         scheduled.filter { $0.fireDate > .now && Calendar.current.isDateInToday($0.fireDate) }
     }
-
     private let defaults = UserDefaults.standard
     private enum Key {
         static let scheduled = "reminders.scheduled"
@@ -115,7 +114,8 @@ final class ReminderScheduler {
         if authorizationStatus == .notDetermined { await requestAuthorization() }
         guard canSchedule else { return false }
         let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
-        guard let card = StudyQueue.build(from: cards, newLimit: .max).first ?? cards.first else { return false }
+        guard let card = StudyQueue.build(from: StudyQueue.comingUp(context: context), newLimit: .max).first ?? cards.first
+        else { return false }
         try? context.save()
         let fireDate = Date.now.addingTimeInterval(5)
         let request = UNNotificationRequest(
@@ -130,7 +130,7 @@ final class ReminderScheduler {
     // MARK: - Planning
 
     private func plan(context: ModelContext, settings: ReminderSettings, now: Date) -> [(request: UNNotificationRequest, reminder: PlannedReminder)] {
-        let cards = (try? context.fetch(FetchDescriptor<Card>())) ?? []
+        let cards = StudyQueue.comingUp(context: context)
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: now)
         let newCardsPerDay = StudySettings.newCardsPerDay()
@@ -152,7 +152,13 @@ final class ReminderScheduler {
         var planned: [(request: UNNotificationRequest, reminder: PlannedReminder)] = []
         for (dayStart, newLimit) in days {
             let ordered = StudyQueue.reminderCandidates(from: cards, dayStart: dayStart, newLimit: newLimit, calendar: calendar)
-            let candidates = ordered.indices.map { ReminderPlanner.Candidate(id: $0, availableAt: ordered[$0].availableAt) }
+            let latestNewCardStart = ReminderPlanner.latestNewCardStart(dayStart: dayStart, settings: settings, calendar: calendar)
+            let candidates = ordered.indices.map {
+                ReminderPlanner.Candidate(
+                    id: $0, availableAt: ordered[$0].availableAt,
+                    latestAt: ordered[$0].card.state == .new ? latestNewCardStart : nil
+                )
+            }
             let reminders = ReminderPlanner.planDay(
                 candidates: candidates, dayStart: dayStart, now: now, settings: settings,
                 alreadySent: dayStart == today ? sentToday.count : 0, calendar: calendar
@@ -189,7 +195,7 @@ final class ReminderScheduler {
         let previews = fsrs.preview(card.schedule, now: fireDate)
         let intervals = GradeAction.ratings.map { rating, _ in
             previews[rating].map {
-                DueText.next($0.due, from: fireDate, rating: rating, reminderEnd: ReminderSettings.load().windowEnd(on: fireDate))
+                DueText.next($0.due, from: fireDate, rating: rating, lastReminder: ReminderSettings.load().lastReminder(on: fireDate))
             } ?? ""
         }
         content.userInfo = ReminderPayload.userInfo(for: card, path: content.title, intervals: intervals, cardIDs: cardIDs)

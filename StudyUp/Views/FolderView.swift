@@ -15,11 +15,18 @@ struct FolderView: View {
 
     var body: some View {
         let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
+        // Counted across all cards, so the badges add up to Home's "Today: N cards left".
+        let leftToday = StudyQueue.leftToday(from: StudyQueue.cards(in: .all, context: context), newLimit: remainingNew)
         let cards = folder.cards.sorted { $0.createdAt > $1.createdAt }
         List {
             if !folder.allCards.isEmpty {
                 Section {
-                    StudyButtonRow(counts: counts(folder.allCards, remainingNew)) {
+                    StudyButtonRow(
+                        isReady: !StudyQueue.build(from: folder.allCards, newLimit: remainingNew).isEmpty,
+                        hasCardsLeftToday: FolderModes.shared.isActive(folder)
+                            ? folder.allCards.contains { leftToday.contains(ObjectIdentifier($0)) } : nil,
+                        readySummary: "Go through this folder's cards now"
+                    ) {
                         presenter.session = .make(
                             title: folder.name, scope: .folder(folder), context: context,
                             newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
@@ -31,8 +38,9 @@ struct FolderView: View {
                 Section("Folders") {
                     ForEach(folder.sortedSubfolders) { subfolder in
                         NavigationLink(value: subfolder) {
-                            FolderRow(folder: subfolder, dueCount: counts(subfolder.allCards, remainingNew).total)
+                            FolderRow(folder: subfolder, dueCount: subfolder.allCards.count { leftToday.contains(ObjectIdentifier($0)) })
                         }
+                        .contextMenu { FolderModeButtons(folder: subfolder) }
                         .swipeActions {
                             Button("Delete", systemImage: "trash", role: .destructive) { folderToDelete = subfolder }
                         }
@@ -61,6 +69,8 @@ struct FolderView: View {
                     Button("New Subfolder", systemImage: "folder.badge.plus") { isAddingSubfolder = true }
                     Divider()
                     Button("Rename Folder", systemImage: "pencil") { isRenaming = true }
+                    Divider()
+                    FolderModeButtons(folder: folder)
                 } label: {
                     Label("Add", systemImage: "plus")
                 }
@@ -76,9 +86,5 @@ struct FolderView: View {
         }
         .deleteFolderConfirmation($folderToDelete)
         .deleteCardConfirmation($cardToDelete)
-    }
-
-    private func counts(_ cards: [Card], _ remainingNew: Int) -> StudyQueue.Counts {
-        StudyQueue.counts(for: StudyQueue.build(from: cards, newLimit: remainingNew))
     }
 }

@@ -12,7 +12,7 @@ A personal spaced-repetition flashcard app built by and for one person, a new gr
 ```
 StudyUp/                     iPhone app (SwiftUI + SwiftData), iOS 26.5+
   Models/                    Folder, Card, ReviewLog, Tombstone; Persistence (container, backfill)
-  Scheduling/                FSRS.swift (FSRS-5), StudyQueue (what's due), StudySession
+  Scheduling/                FSRS.swift (FSRS-5), StudyQueue (what's due), StudySession, FolderModes (pause/focus)
   Reminders/                 ReminderPlanner (pure), ReminderScheduler (notifications), NotificationHandling (payload, delegate, grading)
   Sync/                      SyncProtocol (records), SyncMerger (merge rules), SyncEngine (HTTP, pairing, images), MacBrowser (Bonjour)
   Content/                   ImageStore (image files + ![](image:<id>) refs), Cloze
@@ -34,17 +34,18 @@ web/                         Mac web app (see web/README.md)
 ## How it fits together
 
 - **Scheduling.**
-  - New cards per day is a maximum: only as many start as today's remaining reminders can carry after what's due (`StudyQueue.newCardsForToday`). Use that, not `remainingNewCards`, anywhere that decides what to study.
+  - New cards per day is a maximum: only as many start as today's remaining reminders can carry after what's due, and only early enough (3 hours before the last reminder) for the same-day check to fit (`StudyQueue.newCardsForToday`; the planner gives new cards a `latestAt`). Use that, not `remainingNewCards`, anywhere that decides what to study.
   - FSRS-5, with learning steps sized for studying in reminders rather than sessions (`FSRS.defaultLearningSteps`): Wrong → 15 min, which lands in the **next reminder**; Right on a learning card → **3 hours**, a same-day check; Right again → graduates to days. Relearning after a lapse is 15 min.
-  - Sessions show each card once (no in-session repeats). "Ready now" counts only cards that are actually due.
+  - **Pause and Focus** (`FolderModes`, phone-only, in UserDefaults): anything that decides what comes up across all topics (notifications, Home's Study now and counts, new cards) must use `StudyQueue.comingUp` / `StudyScope.all`, never a raw `FetchDescriptor<Card>()`. A folder's own scope ignores the modes.
+  - Sessions show each card once (no in-session repeats). Study now only offers cards that are actually due.
   - There are three grades: Wrong/Right/Easy, which are FSRS Again/Good/Easy.
   - Scheduling fields are stored flat on `Card` so predicates can use them. `CardSchedule` + `FSRS` are pure and unit-tested.
   - Intervals of 3+ days are fuzzed (`FSRS.fuzzed`), seeded by the card's sync id (`CardSchedule.fuzzSeed`) and review count, never the time, so previews (button and notification labels) match what grading does. Keep it that way: anything random in scheduling must be repeatable.
-  - Answer labels come from `DueText` and are plain words ("next notification", "in a few hours", "in 4 days"). The user cares a lot about these being clear.
+  - Answer labels come from `DueText` and are plain words ("next notification", "in a few hours", "in 4 days"). They say when a notification brings the card back: a same-day check due after the day's last reminder says "tomorrow" (`ReminderSettings.lastReminder`). The user cares a lot about these being clear.
 - **Reminders.**
   - iOS can't wake the app on demand, so `ReminderScheduler` plans up to 7 days of notifications ahead, within a 60-notification budget, and replans whenever the app opens or goes to the background, after sessions and settings changes, when the card count changes, and after a grade from a notification.
   - Each reminder carries its exact cards (`cardIDs` = sync ids). Tapping one opens a Quick Review of those cards.
-  - `upcomingToday` / `sentToday` drive the home "Today" summary and the Today screen.
+  - `upcomingToday` / `sentToday` drive the home "Today" summary and the Today screen. "Today: N cards left" and the folder badges count `StudyQueue.leftToday`, the cards in today's remaining reminders: the day ends at the last reminder, not at midnight. Study now shows no count, so Home has one number.
 - **Sync.**
   - Two databases: SwiftData on the phone, SQLite on the Mac at `~/Library/Application Support/StudyUp/`. They share UUIDs (`syncID`).
   - The phone always initiates with `POST /sync {cursor, changes}`; the Mac merges and returns what changed after the cursor.

@@ -116,6 +116,31 @@ struct ReminderPlannerTests {
         let times = slots.map { calendar.dateComponents([.hour, .minute], from: $0) }
         #expect(times.first?.hour == 9 && times.first?.minute == 45)
         #expect(times.last?.hour == 20 && times.last?.minute == 15)
-        #expect(settings.windowEnd(on: dayStart, calendar: calendar).map { calendar.component(.hour, from: $0) } == 21)
+        #expect(settings.lastReminder(on: dayStart.addingTimeInterval(12 * 3600), calendar: calendar) == slots.last)
+    }
+
+    // MARK: New cards need room for their same-day check
+
+    private func newCards(_ count: Int, from first: Int = 100) -> [Candidate] {
+        let latest = ReminderPlanner.latestNewCardStart(dayStart: dayStart, settings: settings, calendar: calendar)
+        return (first..<first + count).map { Candidate(id: $0, availableAt: dayStart, latestAt: latest) }
+    }
+
+    @Test func newCardsStartNoLaterThanThreeHoursBeforeTheLastReminder() {
+        #expect(ReminderPlanner.latestNewCardStart(dayStart: dayStart, settings: settings, calendar: calendar) == at(17.25))
+    }
+
+    /// Spread evenly, the last of these would go out at 8:15 PM, leaving no notification for its check.
+    @Test func newCardsAreSpreadOnlyAsLateAsTheirChecksAllow() {
+        var single = settings
+        single.cardsPerReminder = 1
+        let plan = plan(readyCards(2) + newCards(3), settings: single)
+        #expect(plan.map(\.cardIDs) == [[0], [1], [100], [101], [102]])
+        #expect(plan.map(\.fireDate) == [at(9.75), at(12.75), at(14.25), at(15.75), at(17.25)])
+    }
+
+    @Test func aNewCardTooLateForItsCheckWaitsForTomorrow() {
+        #expect(plan(newCards(1), now: at(17.5)).isEmpty)
+        #expect(plan(readyCards(1) + newCards(1), now: at(17.5)).map(\.cardIDs) == [[0]])
     }
 }

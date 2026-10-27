@@ -163,7 +163,7 @@ struct CardEditorView: View {
         switch card.state {
         case .new: return "New"
         case .learning, .relearning, .review:
-            return card.due <= .now ? "Due now" : "Next review \(DueText.next(card.due))"
+            return card.due <= .now ? "Due now" : "Next review \(DueText.comesBack(card.due))"
         }
     }
 }

@@ -189,6 +189,7 @@ extension ModelContext {
         for subfolder in folder.allFolders {
             if let syncID = subfolder.syncID { insert(Tombstone(kind: .folder, syncID: syncID, deletedAt: now)) }
         }
+        FolderModes.shared.forget(folder.allFolders.compactMap(\.syncID))
         delete(folder)
     }
 

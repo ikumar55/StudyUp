@@ -35,7 +35,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 1. **Test on the iPhone** using TESTING.md. Most features have only been checked on the simulator and the Mac.
 2. **Restore from a backup.** The Mac now keeps daily snapshots (`backups/`) and the JSON download, but neither can be restored from the editor yet. A restore must give the database a new `databaseId`, so the phone sends everything it has. A reinstalled app already gets everything back from the Mac on its first sync, so this matters most if the Mac's database is lost.
 3. **Tune defaults from real use:** reminders per day, cards per reminder, new cards per day, and the 3-hour check.
-4. Then: **Pause and Focus folders** (design under To consider → iPhone app), search and move on the phone, stats (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
+4. Then: search and move on the phone, stats (Phase 3.5 leftovers below), the ideas in **To consider**, and Phase 4.
 
 ## Phases
 
@@ -105,7 +105,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - Shared code: `Shared/` is compiled into both the app and the notification extension (card parser, math, code colors)
 - [ ] Search and move cards on the phone too
 - [ ] Stats: reviews per day, retention per folder, streak
-- [ ] Include or exclude folders from notifications; pause a folder → designed as **Pause and Focus** (To consider → iPhone app)
+- [x] Include or exclude folders from notifications → **Pause and Focus** (Phase 3.13)
 
 ### Phase 3.6: Feedback from the first simulator run (2026-10-21)
 - [x] Removed "Add and Start Next Card"; Add saves and closes
@@ -152,6 +152,22 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - [x] Home's second line reads on from the first: "Today: 3 cards left / Over 2 notifications · next at 5:15 PM" ("Next notification at …" when one is left)
 - [x] When a notification arrives while the app is open, the app replans right away, so Home shows the next time and Today moves the delivered one to "Earlier today" (they used to stay stale until the app replanned for another reason). Times that have passed are never shown as upcoming
 
+### Phase 3.12: The day ends at the last notification (2026-10-27)
+Found on the phone on 2026-10-26: in the evening Home said "Today: 3 cards left" with "No more notifications today". The cards came due at 8:58–8:59 PM, after the last notification (8:15 PM), so they were really coming in tomorrow's first one. Cards reach you in notifications, so the screens now go by when a notification brings a card, not when it becomes ready.
+- [x] Home's **"Today: N cards left"** counts the cards in today's remaining notifications (what the Today screen lists). With notifications off, it's still every card due before midnight. Study now is unchanged: what's ready now, for getting ahead
+- [x] **Answer labels** say "tomorrow" when a card comes due after the day's last notification (they used to compare with the end of notification hours, so 8:15–9 PM said "in a few hours"). A card's status in folder lists and the card editor follows the same rule ("Due tomorrow")
+- [x] **One count on Home:** only "Today: N cards left" has a number. Study now has none ("Go through today's cards now"; in a folder, "this folder's cards"). It used to say "5 cards ready now, 3 new" under "6 cards left", which differed by the card just answered Wrong. When nothing is ready but cards are still coming: "Nothing to study yet · Cards you just answered come back later". After the last notification with cards ready: "Get ahead on tomorrow's cards"
+- [x] **Folder badges count the same cards** (today's remaining notifications), so topics add up to the Home count
+- [x] **Notification icon:** build number raised to 2 so iOS refreshes the cached (blank) icon
+- [x] **New cards start early enough for their same-day check:** no later than 3 hours before the last notification (5:15 PM by default), both in the notification plan and in Study now. Reminders with new cards are spread only as late as that allows
+
+### Phase 3.13: Pause and Focus folders (2026-10-27)
+- [x] Long-press a folder row (or use the menu inside a folder): **Pause** / **Focus**, and **Resume** / **Stop Focusing**. Several folders can be paused or focused, at any level
+- [x] A card comes up (notifications, Home's Study now, "Today: N cards left", badges, new cards) if it's inside a focused folder, or nothing is focused, and isn't inside a paused one. Pause wins inside a focused folder. All of it goes through `FolderModes.includes` via `StudyQueue.comingUp`
+- [x] No text line: a focused folder shows a target icon in color, a paused one a grey pause icon, and folders none of whose cards come up are dimmed with no badge. While anything is focused, the dimmed rows are the reminder
+- [x] A folder's own Study now still works when paused or out of focus ("Go through this folder's cards now")
+- [x] Schedules don't change; cards that fell due meanwhile come back together. Stored on the phone only (folder sync ids in UserDefaults), so no protocol change; deleted folders are forgotten, so a focus on a deleted folder can't hide everything
+
 ### Phase 4: Nice to have
 - [x] App icon (2026-10-26): two stacked cards with a rising line, matching the web editor's favicon; light, dark and tinted versions. Drawn by `scripts/make-app-icon.swift`
 - [ ] Home-screen widget showing the next due card
@@ -180,14 +196,7 @@ Ideas from the 2026-10-26 research (code review of both apps, plus spaced-repeti
 - **Home says why there are no reminders** (S). With notifications denied in iOS Settings, Home says "Notifications are off" although the toggle is on.
 
 **iPhone app**
-- **Pause and Focus folders** (M; designed and agreed 2026-10-26). Two options in a folder's ⋯ menu on the phone:
-  - **Pause:** the folder's cards (subfolders included) stop coming up: not in notifications, Home's Study now, or the "cards left" counts. The folder row shows "Paused"; **Resume** brings it back. A paused folder starts no new cards.
-  - **Focus on This Folder:** the opposite: only this folder's cards come up (notifications, Study now, counts, new cards) until you stop. Home shows one line, "Focusing on OS Fundamentals · Stop", so it isn't forgotten. One focus at a time.
-  - A folder's own Study now keeps working either way (a paused folder can still be studied on purpose).
-  - Both go through the one place that decides which cards count (`StudyQueue` candidates), so notifications, Study now, counts and the new-cards-that-fit limit all agree.
-  - Schedules don't change while paused or out of focus. Cards that fell due meanwhile come back together on resume; FSRS handles the extra elapsed time correctly. Fine for days of exam prep; a long focus means a catch-up after.
-  - Stored on the phone only at first (a set of folder sync ids in UserDefaults; focus as one id), so no protocol change. Showing or changing them in the web editor would mean a synced folder field, mirrored in `protocol.ts` / `SyncProtocol.swift`.
-  - TESTING.md rows to add when built: pausing removes the folder's cards from notifications and counts; resume brings them back; focus limits notifications to one folder; the Home focus line stops it.
+- ~~Pause and Focus folders~~: built 2026-10-27 (Phase 3.13). Showing or changing them in the web editor would need a synced folder field, mirrored in `protocol.ts` / `SyncProtocol.swift`.
 - **New Card from Home** (S–M). Adding a card takes Home → topic → folder → + → New Card. A Home button (last-used folder, with a folder picker in the editor) plus a long-press app-icon shortcut.
 - **Undo the last grade** (S–M). A mis-tapped Wrong can't be taken back.
 - **Accessibility** (S). The three grade buttons truncate at large text sizes (stack them); inline math has no VoiceOver label.

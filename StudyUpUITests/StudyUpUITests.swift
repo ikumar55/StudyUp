@@ -92,7 +92,7 @@ final class StudyUpUITests: XCTestCase {
 
         let studyNow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Study now'")).firstMatch
         XCTAssertTrue(studyNow.waitForExistence(timeout: 5))
-        XCTAssertTrue(studyNow.label.contains("7 new"), studyNow.label)
+        XCTAssertTrue(studyNow.label.contains("Go through today's cards now"), studyNow.label)
 
         app.buttons["Settings"].tap()
         app.buttons["Send a Test Notification"].tap()
@@ -109,8 +109,11 @@ final class StudyUpUITests: XCTestCase {
         right.tap()
 
         // The card moved into learning (a check in a few hours), so it's no longer a new card.
-        let updated = NSPredicate(format: "label CONTAINS '6 new'")
-        expectation(for: updated, evaluatedWith: studyNow)
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'OS Fundamentals'")).firstMatch.tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Processes'")).firstMatch.tap()
+        let card = app.buttons.matching(NSPredicate(format: "label CONTAINS 'process and a thread'")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "label CONTAINS 'Due'"), evaluatedWith: card)
         waitForExpectations(timeout: 10)
     }
 
@@ -157,6 +160,43 @@ final class StudyUpUITests: XCTestCase {
         attachScreenshot("17-reminder-cards", app)
         app.buttons["Study These Now"].tap()
         XCTAssertTrue(app.navigationBars["Quick Review"].waitForExistence(timeout: 5))
+    }
+
+    /// The sample library: OS Fundamentals has 5 cards, ML Foundations 2.
+    @MainActor
+    func testFocusAndPauseFromALongPress() throws {
+        let app = XCUIApplication()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        launch(app)
+        app.buttons["Add Sample Cards"].tap()
+        allowNotificationsIfAsked(app, springboard)
+        let todayRow = { (count: Int) in
+            app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Today: \(count) cards left'")).firstMatch
+        }
+        XCTAssertTrue(todayRow(7).waitForExistence(timeout: 5))
+        let os = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'OS Fundamentals'")).firstMatch
+        let ml = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'ML Foundations'")).firstMatch
+
+        os.press(forDuration: 1.0)
+        app.buttons["Focus"].tap()
+        XCTAssertTrue(todayRow(5).waitForExistence(timeout: 5))
+        attachScreenshot("18-focused", app)
+
+        os.press(forDuration: 1.0)
+        app.buttons["Stop Focusing"].tap()
+        XCTAssertTrue(todayRow(7).waitForExistence(timeout: 5))
+
+        ml.press(forDuration: 1.0)
+        app.buttons["Pause"].tap()
+        XCTAssertTrue(todayRow(5).waitForExistence(timeout: 5))
+        attachScreenshot("19-paused", app)
+
+        // A paused folder can still be studied on purpose.
+        ml.tap()
+        let studyNow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Study now'")).firstMatch
+        XCTAssertTrue(studyNow.waitForExistence(timeout: 5))
+        XCTAssertTrue(studyNow.label.contains("this folder's cards"), studyNow.label)
+        attachScreenshot("20-paused-folder", app)
     }
 
     @MainActor

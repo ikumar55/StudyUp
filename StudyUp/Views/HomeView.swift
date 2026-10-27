@@ -18,6 +18,9 @@ struct HomeView: View {
 
     var body: some View {
         let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
+        // Cards in paused folders, or outside the focused ones, don't come up here.
+        let comingUp = allCards.filter(FolderModes.shared.includes)
+        let leftToday = StudyQueue.leftToday(from: comingUp, newLimit: remainingNew)
         NavigationStack {
             List {
                 if !allCards.isEmpty {
@@ -26,13 +29,16 @@ struct HomeView: View {
                             TodayScheduleView()
                         } label: {
                             TodaySummaryRow(
-                                cardsLeft: dueToday(remainingNew).count,
+                                cardsLeft: leftToday.count,
                                 upcoming: scheduler.upcomingToday,
                                 remindersEnabled: remindersEnabled && scheduler.canSchedule,
                                 nextReminder: scheduler.nextReminderDate
                             )
                         }
-                        StudyButtonRow(counts: counts(allCards, remainingNew)) {
+                        StudyButtonRow(
+                            isReady: isReady(comingUp, remainingNew), hasCardsLeftToday: !leftToday.isEmpty,
+                            readySummary: "Go through today's cards now"
+                        ) {
                             presenter.session = .make(
                                 title: "All Topics", scope: .all, context: context,
                                 newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
@@ -56,8 +62,9 @@ struct HomeView: View {
                     Section("Topics") {
                         ForEach(topics) { topic in
                             NavigationLink(value: topic) {
-                                FolderRow(folder: topic, dueCount: counts(topic.allCards, remainingNew).total)
+                                FolderRow(folder: topic, dueCount: topic.allCards.count { leftToday.contains(ObjectIdentifier($0)) })
                             }
+                            .contextMenu { FolderModeButtons(folder: topic) }
                             .swipeActions {
                                 Button("Delete", systemImage: "trash", role: .destructive) { topicToDelete = topic }
                             }
@@ -113,8 +120,8 @@ struct HomeView: View {
         }
     }
 
-    private func counts(_ cards: [Card], _ remainingNew: Int) -> StudyQueue.Counts {
-        StudyQueue.counts(for: StudyQueue.build(from: cards, newLimit: remainingNew))
+    private func isReady(_ cards: [Card], _ remainingNew: Int) -> Bool {
+        !StudyQueue.build(from: cards, newLimit: remainingNew).isEmpty
     }
 
     private func reschedule() {

@@ -149,6 +149,37 @@ Set up first: run `web/scripts/install-service.sh` on the Mac, then open http://
 | [ ] | The app says "notification" everywhere: Settings section and toggle, "cards per notification", Send a Test Notification, the Wrong button's "next notification", the Today screen | |
 | [ ] | With the app open on Home or Today when a notification arrives: Home moves on to the next time, and Today moves it to "Earlier today" | |
 
+## Phase 3.12: The end of the day follows the last notification
+
+With the default hours (9 AM – 9 PM, up to 8 a day) the last notification is at 8:15 PM.
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Answer a card Wrong after 8:15 PM, then go Home: the top row says "All done for today · next tomorrow at 9:45", not "1 card left" | |
+| [ ] | Home's "Today: N cards left" matches the cards listed under Coming up on the Today screen | |
+| [ ] | Around 6 PM, the Right button on a card still being learned says "tomorrow" (its check would come after 8:15 PM); before 5 PM it says "in a few hours" | |
+| [ ] | The long-pressed evening notification's Right button says the same as the app would | |
+| [ ] | That card's status (in its folder list and the card editor) also says "Due tomorrow", not "Due later today" | |
+| [ ] | Home shows one count: "Today: N cards left". Study now reads "Go through today's cards now" with no number | |
+| [ ] | The topic badges on Home add up to "Today: N cards left"; subfolder badges add up to their topic's | |
+| [ ] | Answer the last ready card Wrong: Study now says "Nothing to study yet · Cards you just answered come back later" while the top row still counts it | |
+| [ ] | After the last notification, with cards ready: the top row says "All done for today" and Study now says "Get ahead on tomorrow's cards" | |
+| [ ] | A folder's own Study now reads "Go through this folder's cards now" | |
+| [ ] | After 5:15 PM, Study now and notifications start no new cards (their 3-hour check wouldn't fit); new cards earlier in the day get a check notification the same day | |
+
+## Phase 3.13: Pause and Focus folders
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Long-press a topic → Pause: its row turns grey with a pause icon, its badge goes, and "Today: N cards left" drops by its cards | |
+| [ ] | No notifications arrive with a paused folder's cards; Resume brings them back into the plan (Today screen) | |
+| [ ] | Long-press → Focus: the target icon appears, every other topic dims, and notifications only bring that folder's cards | |
+| [ ] | Focus two folders (e.g. a topic and a subfolder in another topic): both come up, and the topic holding the subfolder isn't dimmed | |
+| [ ] | Pause a subfolder inside a focused topic: its cards stay out | |
+| [ ] | Open a paused folder: its Study now still works ("Go through this folder's cards now") | |
+| [ ] | The Pause / Focus options are also in the + menu inside a folder | |
+| [ ] | Pause and focus survive quitting and reopening the app; deleting a focused folder brings everything else back | |
+
 ## App icon
 
 | ✓ | Test | Notes |
@@ -172,4 +203,6 @@ Real use is what settles these defaults. The app's defaults are up to 8 reminder
 
 | Date | What happened | Status |
 |---|---|---|
+| 2026-10-26 | Evening Home read "Today: 3 cards left" with "No more notifications today · next tomorrow at 9:45". The 3 cards came due at 8:58–8:59 PM, after the last notification (8:15 PM), so they were really tomorrow's | Fixed 2026-10-27 (Phase 3.12) |
+| 2026-10-27 | Notifications show the blank default icon instead of the app icon | Build number raised 1 → 2 so iOS refreshes its icon cache; if it persists after ⌘R, restart the iPhone |
 | | | |

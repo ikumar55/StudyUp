@@ -39,10 +39,10 @@ nonisolated struct ReminderSettings: Equatable, Sendable {
     var maxPerDay = StudySettings.defaultRemindersPerDay
     var cardsPerReminder = StudySettings.defaultCardsPerReminder
 
-    /// When reminders stop on the given day, or nil if reminders are off.
-    func windowEnd(on day: Date, calendar: Calendar = .current) -> Date? {
+    /// When the given day's last reminder goes out, or nil if reminders are off.
+    func lastReminder(on day: Date, calendar: Calendar = .current) -> Date? {
         guard isEnabled else { return nil }
-        return Self.time(endMinute, on: day, calendar: calendar)
+        return ReminderPlanner.slots(dayStart: calendar.startOfDay(for: day), settings: self, calendar: calendar).last
     }
 
     /// The clock time `minute` minutes after midnight on `day`. Uses the calendar rather than adding

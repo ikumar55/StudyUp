@@ -1,19 +1,26 @@
 import SwiftData
 import SwiftUI
 
-/// "Study now" row showing how many cards are waiting.
+/// "Study now": go through the cards now instead of waiting for notifications. No count, since the
+/// "Today: N cards left" row (or a folder's badge) already gives one.
 struct StudyButtonRow: View {
-    let counts: StudyQueue.Counts
+    /// Whether any card can be studied right now.
+    let isReady: Bool
+    /// Whether today's notifications will still bring cards (some may not be ready yet). Nil for a
+    /// folder that's paused or out of focus, studied only on purpose.
+    let hasCardsLeftToday: Bool?
+    /// What studying covers, e.g. "Go through today's cards now".
+    let readySummary: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: counts.total > 0 ? "play.circle.fill" : "checkmark.circle.fill")
+                Image(systemName: icon)
                     .font(.largeTitle)
-                    .foregroundStyle(counts.total > 0 ? Color.accentColor : .green)
+                    .foregroundStyle(isReady ? Color.accentColor : waiting ? .secondary : .green)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(counts.total > 0 ? "Study now" : "All caught up")
+                    Text(title)
                         .font(.headline)
                     Text(summary)
                         .font(.subheadline)
@@ -22,13 +29,28 @@ struct StudyButtonRow: View {
             }
             .padding(.vertical, 4)
         }
-        .disabled(counts.total == 0)
+        .disabled(!isReady)
+    }
+
+    /// Nothing is ready, but notifications will still bring cards later today.
+    private var waiting: Bool { !isReady && hasCardsLeftToday == true }
+
+    private var icon: String {
+        isReady ? "play.circle.fill" : waiting ? "clock.fill" : "checkmark.circle.fill"
+    }
+
+    private var title: String {
+        isReady ? "Study now" : waiting ? "Nothing to study yet" : "All caught up"
     }
 
     private var summary: String {
-        guard counts.total > 0 else { return "Nothing to study right now" }
-        let ready = "\(counts.total) \(counts.total == 1 ? "card" : "cards") ready now"
-        return counts.new > 0 ? "\(ready), \(counts.new) new" : ready
+        switch (isReady, hasCardsLeftToday) {
+        case (true, true), (true, nil): readySummary
+        // After the day's last notification: what's ready now would come in tomorrow's first.
+        case (true, false): "Get ahead on tomorrow's cards"
+        case (false, true): "Cards you just answered come back later"
+        case (false, _): "Nothing to study right now"
+        }
     }
 }
 
@@ -70,21 +92,31 @@ struct TodaySummaryRow: View {
     }
 }
 
+/// A folder in a list. A focused folder shows a target icon and a paused one a pause icon; folders
+/// none of whose cards come up (paused, or out of focus) are dimmed.
 struct FolderRow: View {
     let folder: Folder
+    /// The folder's cards still to come today (`StudyQueue.leftToday`), shown as a badge.
     let dueCount: Int
+    private let modes = FolderModes.shared
 
     var body: some View {
+        let isActive = modes.isActive(folder)
         HStack {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(folder.name)
+                        .foregroundStyle(isActive ? .primary : .secondary)
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             } icon: {
-                Image(systemName: "folder.fill")
+                switch modes.mode(of: folder) {
+                case .focused: Image(systemName: "scope").foregroundStyle(Color.accentColor)
+                case .paused: Image(systemName: "pause.circle.fill").foregroundStyle(.secondary)
+                case .normal: Image(systemName: "folder.fill").foregroundStyle(isActive ? Color.accentColor : .secondary)
+                }
             }
             Spacer()
             if dueCount > 0 {
@@ -124,7 +156,7 @@ struct CardRow: View {
     private var status: String {
         if card.state == .new { return "New" }
         let remaining = card.due.timeIntervalSinceNow
-        return remaining <= 0 ? "Due now" : "Due \(DueText.next(card.due))"
+        return remaining <= 0 ? "Due now" : "Due \(DueText.comesBack(card.due))"
     }
 }
 
@@ -192,6 +224,31 @@ struct DeleteCardConfirmation: ViewModifier {
         } message: { _ in
             Text("Its review history will be deleted too.")
         }
+    }
+}
+
+/// Pause / Focus for a folder, in its row's long-press menu and its own menu. Changing either
+/// replans notifications, since it changes which cards come up.
+struct FolderModeButtons: View {
+    @Environment(\.modelContext) private var context
+    let folder: Folder
+    private let modes = FolderModes.shared
+
+    var body: some View {
+        switch modes.mode(of: folder) {
+        case .normal:
+            Button("Pause", systemImage: "pause.circle") { set(.paused) }
+            Button("Focus", systemImage: "scope") { set(.focused) }
+        case .paused:
+            Button("Resume", systemImage: "play.circle") { set(.normal) }
+        case .focused:
+            Button("Stop Focusing", systemImage: "scope") { set(.normal) }
+        }
+    }
+
+    private func set(_ mode: FolderModes.Mode) {
+        modes.set(mode, for: folder)
+        ReminderScheduler.shared.reschedule(context: context)
     }
 }
 
