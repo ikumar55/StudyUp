@@ -190,6 +190,7 @@ With the default hours (9 AM – 9 PM, up to 8 a day) the last notification is a
 | [ ] | Open a study session, then answer the same card from its notification (long-press) and grade it in the session too: its Reviews count goes up by one | |
 | [ ] | Turn notifications off for StudyUp in iOS Settings: Home says "Notifications are off in iOS Settings" | |
 | [ ] | Deleting a folder with one card says "Delete Folder and 1 Card" | |
+| [ ] | Web: an answer with lines "1) …", "3) …", "4) …" shows 1, 3, 4 after saving, not 1, 2, 3 | |
 
 ## App icon
 

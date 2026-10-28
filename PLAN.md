@@ -86,6 +86,7 @@ See **CLAUDE.md** for the repo layout, how the pieces fit together, the rules th
 - [x] Folder tree with create, rename, move (menu or drag-and-drop) and delete, plus keyboard navigation
 - [x] Fast card entry (⌘↩ adds the card and returns to Question), inline editing, live Markdown preview, delete with Undo
 - [x] ⌘B bolds the selected text in any card field, and unbolds it if it's already bold (2026-10-26)
+- [x] Numbered lists show the numbers typed ("1) … 3) …" reads 1, 3), not Markdown's own count, so the editor matches the iPhone (2026-10-28)
 - Bulk paste (`Q:`/`A:` blocks, `question :: answer` lines, tab-separated) was built, then removed on 2026-10-26: rarely needed, and cards are better written one at a time
 - [x] Search across all cards (⌘K); move cards between folders
 - [x] Download a backup (JSON); iPhone pairing panel; live updates when the phone syncs (polls every 3 s)

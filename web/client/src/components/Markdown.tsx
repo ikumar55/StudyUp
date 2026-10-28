@@ -8,6 +8,7 @@ import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
 import { prepareMarkdown } from '../format.ts'
 import { imageURL } from '../images.ts'
+import { remarkTypedListNumbers } from '../listNumbers.ts'
 
 // react-markdown never renders raw HTML and strips unsafe URLs, so card text can't inject markup.
 // `image:<id>` references are the one custom scheme allowed; they resolve to the server's image store.
@@ -15,7 +16,8 @@ const urlTransform = (url: string) => imageURL(url) ?? defaultUrlTransform(url)
 
 // $inline$ and $$display$$ LaTeX, rendered by KaTeX. Bad LaTeX shows in red instead of failing the card.
 // Code blocks that name their language (```c) get syntax colors; others stay plain.
-const remarkPlugins = [remarkMath]
+// Numbered lists show the numbers typed.
+const remarkPlugins = [remarkMath, remarkTypedListNumbers]
 const rehypePlugins: Parameters<typeof ReactMarkdown>[0]['rehypePlugins'] = [
   [rehypeKatex, { throwOnError: false, strict: 'ignore' }],
   [rehypeHighlight, { detect: false }],
