@@ -123,7 +123,7 @@ struct HomeView: View {
     }
 
     private func isReady(_ cards: [Card], _ remainingNew: Int) -> Bool {
-        !StudyQueue.build(from: cards, newLimit: remainingNew).isEmpty
+        !StudyQueue.build(from: cards, newLimit: remainingNew, missed: StudyQueue.missedToday(from: cards)).isEmpty
     }
 
     private func reschedule() {

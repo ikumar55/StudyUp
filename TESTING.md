@@ -192,6 +192,15 @@ With the default hours (9 AM – 9 PM, up to 8 a day) the last notification is a
 | [ ] | Deleting a folder with one card says "Delete Folder and 1 Card" | |
 | [ ] | Web: an answer with lines "1) …", "3) …", "4) …" shows 1, 3, 4 after saving, not 1, 2, 3 | |
 
+## Phase 3.15: Missed notifications stay part of today
+
+| ✓ | Test | Notes |
+|---|---|---|
+| [ ] | Ignore a notification (don't open or answer it), then open the app: Today shows that notification under Earlier today with a blue dot, not a check | |
+| [ ] | Tap it: its cards are listed with "Sent at …"; Study These Now goes through the unanswered ones; afterwards the dot is a check | |
+| [ ] | Study now includes the ignored cards, including a new card ignored in the morning and opened in the evening | |
+| [ ] | After the day's last notification, with ignored cards left: Home says "Today: N cards left" · "From earlier notifications" | |
+
 ## App icon
 
 | ✓ | Test | Notes |

@@ -149,6 +149,49 @@ struct StudyQueueTests {
         #expect(session.current == nil)
     }
 
+    // MARK: Cards from notifications you didn't answer
+
+    private func sent(_ cards: [Card], at time: Date) -> PlannedReminder {
+        PlannedReminder(fireDate: time, cardIDs: cards.compactMap(\.syncID))
+    }
+
+    @Test func aCardStaysUnansweredUntilAnsweredAfterItsNotification() {
+        let sentAt = now.addingTimeInterval(-3600)
+        let card = makeCard("new")
+        #expect(StudyQueue.isUnanswered(card, sentAt: sentAt, now: now))
+        card.record(.good, fsrs: FSRS(), context: context, now: now.addingTimeInterval(-60))
+        #expect(!StudyQueue.isUnanswered(card, sentAt: sentAt, now: now))
+
+        let reviewedBefore = makeCard("review", state: .review, due: now.addingTimeInterval(-7200))
+        reviewedBefore.lastReview = sentAt.addingTimeInterval(-86_400)
+        #expect(StudyQueue.isUnanswered(reviewedBefore, sentAt: sentAt, now: now), "still due, not answered since")
+        let notDueToday = makeCard("next week", state: .review, due: now.addingTimeInterval(7 * 86_400))
+        #expect(!StudyQueue.isUnanswered(notDueToday, sentAt: sentAt, now: now), "nothing left to do today")
+    }
+
+    @Test func aCardSentAgainCountsFromItsLatestNotification() {
+        let card = makeCard("new")
+        let other = makeCard("other")
+        let morning = now.addingTimeInterval(-6 * 3600)
+        let noon = now.addingTimeInterval(-3600)
+        // Answered Wrong after the morning one, then missed at noon.
+        card.record(.again, fsrs: FSRS(), context: context, now: morning.addingTimeInterval(60))
+        card.due = noon
+        let missed = StudyQueue.missedToday(
+            from: [card, other], sent: [sent([card, other], at: morning), sent([card], at: noon)], now: now
+        )
+        #expect(missed == [ObjectIdentifier(card), ObjectIdentifier(other)])
+        card.record(.good, fsrs: FSRS(), context: context, now: now)
+        #expect(StudyQueue.missedToday(from: [card, other], sent: [sent([card], at: noon)], now: now).isEmpty)
+    }
+
+    @Test func missedNewCardsComeInWhateverTheNewCardLimit() {
+        let cards = (0..<4).map { makeCard("new \($0)") }
+        let missed: Set = [ObjectIdentifier(cards[2])]
+        #expect(StudyQueue.build(from: cards, newLimit: 0, missed: missed, now: now).map(\.front) == ["new 2"])
+        #expect(StudyQueue.build(from: cards, newLimit: 2, missed: missed, now: now).map(\.front) == ["new 2", "new 0"])
+    }
+
     @Test func aSessionShowsEachCardOnce() {
         let card = makeCard("new")
         let other = makeCard("other")

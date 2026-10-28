@@ -22,8 +22,12 @@ enum StudyQueue {
         ((try? context.fetch(FetchDescriptor<Card>())) ?? []).filter(FolderModes.shared.includes)
     }
 
-    /// Learning cards first, then reviews due today, then new cards up to `newLimit`.
-    static func build(from cards: [Card], newLimit: Int, now: Date = .now, calendar: Calendar = .current) -> [Card] {
+    /// Learning cards first, then reviews due today, then new cards up to `newLimit`. New cards from
+    /// notifications that went unanswered (`missed`, see `missedToday`) come first and always come in,
+    /// since they were already today's.
+    static func build(
+        from cards: [Card], newLimit: Int, missed: Set<ObjectIdentifier> = [], now: Date = .now, calendar: Calendar = .current
+    ) -> [Card] {
         let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
         var learning: [Card] = []
         var review: [Card] = []
@@ -42,7 +46,34 @@ enum StudyQueue {
         learning.sort { $0.due < $1.due }
         review.sort { $0.due < $1.due }
         new.sort { $0.createdAt < $1.createdAt }
-        return learning + review + new.prefix(max(newLimit, 0))
+        let missedNew = new.filter { missed.contains(ObjectIdentifier($0)) }
+        let otherNew = new.filter { !missed.contains(ObjectIdentifier($0)) }
+        return learning + review + missedNew + otherNew.prefix(max(newLimit - missedNew.count, 0))
+    }
+
+    /// Whether a card from a notification sent at `sentAt` is still waiting: not answered since, and
+    /// still something to study today.
+    static func isUnanswered(_ card: Card, sentAt: Date, now: Date = .now, calendar: Calendar = .current) -> Bool {
+        if let lastReview = card.lastReview, lastReview >= sentAt { return false }
+        let startOfTomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+        return card.state == .new || card.due < startOfTomorrow
+    }
+
+    /// Cards from today's notifications that went out but weren't answered. They stay part of today:
+    /// Study now, "Today: N cards left" and the Today screen include them until they're done.
+    static func missedToday(
+        from cards: [Card], sent: [PlannedReminder] = ReminderScheduler.shared.sentSoFarToday,
+        now: Date = .now, calendar: Calendar = .current
+    ) -> Set<ObjectIdentifier> {
+        // A card sent more than once counts from the latest time.
+        var lastSent: [UUID: Date] = [:]
+        for reminder in sent {
+            for id in reminder.cardIDs { lastSent[id] = max(lastSent[id] ?? reminder.fireDate, reminder.fireDate) }
+        }
+        return Set(cards.filter { card in
+            guard let sentAt = card.syncID.flatMap({ lastSent[$0] }) else { return false }
+            return isUnanswered(card, sentAt: sentAt, now: now, calendar: calendar)
+        }.map(ObjectIdentifier.init))
     }
 
     /// Cards worth reviewing at some point during the day starting at `dayStart`, in study order,
@@ -107,13 +138,15 @@ enum StudyQueue {
     }
 
     /// The cards still to come today, which Home's "Today: N cards left" and the folder badges count.
-    /// Cards reach you in notifications, so these are the cards in today's remaining ones; a card due
-    /// after the last one comes in tomorrow's first. With notifications off, every card due before midnight.
+    /// Cards reach you in notifications, so these are the cards in today's remaining ones, plus those
+    /// from earlier ones you didn't answer; a card due after the last one comes in tomorrow's first.
+    /// With notifications off, every card due before midnight.
     static func leftToday(from cards: [Card], newLimit: Int, now: Date = .now) -> Set<ObjectIdentifier> {
         let scheduler = ReminderScheduler.shared
         if ReminderSettings.load().isEnabled, scheduler.canSchedule {
             let planned = Set(scheduler.upcomingToday.flatMap(\.cardIDs))
             return Set(cards.filter { $0.syncID.map(planned.contains) ?? false }.map(ObjectIdentifier.init))
+                .union(missedToday(from: cards, now: now))
         }
         let dayStart = Calendar.current.startOfDay(for: now)
         return Set(reminderCandidates(from: cards, dayStart: dayStart, newLimit: newLimit).map { ObjectIdentifier($0.card) })

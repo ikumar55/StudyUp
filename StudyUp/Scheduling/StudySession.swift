@@ -39,7 +39,8 @@ final class StudySession: Identifiable {
     ) -> StudySession {
         let buildQueue = {
             let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
-            return StudyQueue.build(from: StudyQueue.cards(in: scope, context: context), newLimit: remainingNew)
+            let cards = StudyQueue.cards(in: scope, context: context)
+            return StudyQueue.build(from: cards, newLimit: remainingNew, missed: StudyQueue.missedToday(from: cards))
         }
         var queue = buildQueue()
         if let first, let index = queue.firstIndex(where: { $0 === first }) {
@@ -58,7 +59,8 @@ final class StudySession: Identifiable {
     ) -> StudySession {
         StudySession(title: title, cards: cards, fsrs: StudySettings.fsrs(desiredRetention: desiredRetention)) {
             let remainingNew = StudyQueue.newCardsForToday(dailyLimit: newCardsPerDay, context: context)
-            return StudyQueue.build(from: StudyQueue.cards(in: .all, context: context), newLimit: remainingNew)
+            let cards = StudyQueue.cards(in: .all, context: context)
+            return StudyQueue.build(from: cards, newLimit: remainingNew, missed: StudyQueue.missedToday(from: cards))
         }
     }
 

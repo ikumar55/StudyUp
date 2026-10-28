@@ -46,6 +46,7 @@ web/                         Mac web app (see web/README.md)
   - iOS can't wake the app on demand, so `ReminderScheduler` plans up to 7 days of notifications ahead, within a 60-notification budget, and replans whenever the app opens or goes to the background, after sessions and settings changes, when the card count changes, and after a grade from a notification.
   - Each reminder carries its exact cards (`cardIDs` = sync ids). Tapping one opens a Quick Review of those cards.
   - `upcomingToday` / `sentToday` drive the home "Today" summary and the Today screen. "Today: N cards left" and the folder badges count `StudyQueue.leftToday`, the cards in today's remaining reminders: the day ends at the last reminder, not at midnight. Study now shows no count, so Home has one number.
+  - Cards from today's sent reminders that weren't answered (`StudyQueue.missedToday`: not reviewed since the latest one that carried them) stay part of today: they're in Study now (`build(missed:)`, even past the new-card cutoff), in "cards left", and the Today screen marks their reminder with a dot instead of a check. Pass `missed:` anywhere that builds a study queue.
 - **Sync.**
   - Two databases: SwiftData on the phone, SQLite on the Mac at `~/Library/Application Support/StudyUp/`. They share UUIDs (`syncID`).
   - The phone always initiates with `POST /sync {cursor, changes}`; the Mac merges and returns what changed after the cursor.

@@ -31,6 +31,10 @@ final class ReminderScheduler {
     var upcomingToday: [PlannedReminder] {
         scheduled.filter { $0.fireDate > .now && Calendar.current.isDateInToday($0.fireDate) }
     }
+    /// Today's reminders that have gone out, including any since the last replan.
+    var sentSoFarToday: [PlannedReminder] {
+        sentToday + scheduled.filter { $0.fireDate <= .now && Calendar.current.isDateInToday($0.fireDate) }
+    }
     private let defaults = UserDefaults.standard
     private enum Key {
         static let scheduled = "reminders.scheduled"

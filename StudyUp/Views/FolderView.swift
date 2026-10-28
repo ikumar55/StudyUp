@@ -25,7 +25,9 @@ struct FolderView: View {
             if !folder.allCards.isEmpty {
                 Section {
                     StudyButtonRow(
-                        isReady: !StudyQueue.build(from: folder.allCards, newLimit: remainingNew).isEmpty,
+                        isReady: !StudyQueue.build(
+                            from: folder.allCards, newLimit: remainingNew, missed: StudyQueue.missedToday(from: folder.allCards)
+                        ).isEmpty,
                         hasCardsLeftToday: FolderModes.shared.isActive(folder)
                             ? folder.allCards.contains { leftToday.contains(ObjectIdentifier($0)) } : nil,
                         readySummary: "Go through this folder's cards now"

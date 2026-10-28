@@ -176,6 +176,12 @@ Found on the phone on 2026-10-26: in the evening Home said "Today: 3 cards left"
 - [x] Home says "Notifications are off in iOS Settings" when permission was turned off there (it said "Notifications are off" with the toggle on)
 - [x] "Delete Folder and 1 Card" (was "1 Cards"; just "Delete Folder" when empty); topics on Home sort like subfolders ("ml" no longer after "OS"); Send a Test Notification says when iOS Settings blocks it instead of "Add a card first."
 
+### Phase 3.15: Missed notifications stay part of today (2026-10-28)
+A card from a notification you didn't answer is still due, and the next plan already puts it in the next notification. Now the screens say so too, in one pile rather than a separate "overdue" stack, so you can catch up on everything before the day ends.
+- [x] **Study now** includes cards from today's notifications that weren't answered, new ones too, even once new cards would otherwise have stopped for the day (`StudyQueue.missedToday`, `build(missed:)`)
+- [x] **"Today: N cards left"** and the folder badges count them; with no notifications left today it says "From earlier notifications"
+- [x] **Today screen:** a sent notification is checked off only once its cards are answered; until then it shows a blue dot, and tapping it lists its cards with Study These Now for the ones left
+
 ### Phase 4: Nice to have
 - [x] App icon (2026-10-26): two stacked cards with a rising line, matching the web editor's favicon; light, dark and tinted versions. Drawn by `scripts/make-app-icon.swift`
 - [ ] Home-screen widget showing the next due card

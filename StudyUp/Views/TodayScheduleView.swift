@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// Today's reminders: the ones still to come (with their cards) and the ones already sent.
+/// Today's reminders: the ones still to come (with their cards) and the ones already sent. A sent one
+/// is checked off once its cards are answered; until then it shows a dot and its cards can be studied.
 struct TodayScheduleView: View {
     @Query private var allCards: [Card]
     @AppStorage(StudySettings.remindersEnabledKey) private var remindersEnabled = StudySettings.defaultRemindersEnabled
@@ -20,7 +21,7 @@ struct TodayScheduleView: View {
                     NavigationLink {
                         ReminderCardsView(reminder: reminder, cards: cards)
                     } label: {
-                        ReminderRow(reminder: reminder, cards: cards, isSent: false)
+                        ReminderRow(reminder: reminder, cards: cards)
                     }
                 }
             } header: {
@@ -28,10 +29,16 @@ struct TodayScheduleView: View {
             } footer: {
                 Text("The plan updates as you study: cards you review early drop out, and cards you get wrong come back later today.")
             }
-            if !scheduler.sentToday.isEmpty {
+            let sent = scheduler.sentSoFarToday
+            if !sent.isEmpty {
                 Section("Earlier today") {
-                    ForEach(scheduler.sentToday.reversed()) { reminder in
-                        ReminderRow(reminder: reminder, cards: reminder.cardIDs.compactMap { cardsByID[$0] }, isSent: true)
+                    ForEach(sent.reversed()) { reminder in
+                        let cards = reminder.cardIDs.compactMap { cardsByID[$0] }
+                        NavigationLink {
+                            ReminderCardsView(reminder: reminder, cards: cards, isSent: true)
+                        } label: {
+                            ReminderRow(reminder: reminder, cards: cards, isSent: true)
+                        }
                     }
                 }
             }
@@ -43,7 +50,7 @@ struct TodayScheduleView: View {
 private struct ReminderRow: View {
     let reminder: PlannedReminder
     let cards: [Card]
-    let isSent: Bool
+    var isSent = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -63,24 +70,40 @@ private struct ReminderRow: View {
             }
             Spacer(minLength: 0)
             if isSent {
-                Image(systemName: "checkmark")
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Sent")
+                if unanswered(cards, sentAt: reminder.fireDate).isEmpty {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Done")
+                } else {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 9, height: 9)
+                        .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+                        .accessibilityLabel("Not done yet")
+                }
             }
         }
     }
 }
 
-/// The cards a planned reminder covers, with a way to study them now instead of waiting.
+/// A sent reminder's cards that still wait to be answered (and come up, see `FolderModes`).
+private func unanswered(_ cards: [Card], sentAt: Date) -> [Card] {
+    cards.filter { FolderModes.shared.includes($0) && StudyQueue.isUnanswered($0, sentAt: sentAt) }
+}
+
+/// The cards a reminder covers, with a way to study them now: a planned one's instead of waiting,
+/// a sent one's that weren't answered.
 private struct ReminderCardsView: View {
     let reminder: PlannedReminder
     let cards: [Card]
+    var isSent = false
     @Environment(\.modelContext) private var context
     @Environment(Presenter.self) private var presenter
     @AppStorage(StudySettings.newCardsPerDayKey) private var newCardsPerDay = StudySettings.defaultNewCardsPerDay
     @AppStorage(StudySettings.desiredRetentionKey) private var desiredRetention = StudySettings.defaultDesiredRetention
 
     var body: some View {
+        let toStudy = isSent ? unanswered(cards, sentAt: reminder.fireDate) : cards
         List {
             Section {
                 ForEach(cards) { card in
@@ -94,16 +117,18 @@ private struct ReminderCardsView: View {
                     }
                 }
             } footer: {
-                Text("Planned for \(reminder.fireDate.formatted(date: .omitted, time: .shortened)).")
+                Text("\(isSent ? "Sent at" : "Planned for") \(reminder.fireDate.formatted(date: .omitted, time: .shortened)).")
             }
-            Section {
-                Button("Study These Now", systemImage: "play.fill") {
-                    presenter.present(.make(
-                        title: "Quick Review", cards: cards, context: context,
-                        newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
-                    ))
+            if !(isSent && toStudy.isEmpty) {
+                Section {
+                    Button("Study These Now", systemImage: "play.fill") {
+                        presenter.present(.make(
+                            title: "Quick Review", cards: toStudy, context: context,
+                            newCardsPerDay: newCardsPerDay, desiredRetention: desiredRetention
+                        ))
+                    }
+                    .disabled(toStudy.isEmpty)
                 }
-                .disabled(cards.isEmpty)
             }
         }
         .navigationTitle(reminder.fireDate.formatted(date: .omitted, time: .shortened))

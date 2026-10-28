@@ -87,6 +87,8 @@ struct TodaySummaryRow: View {
             let time = next.fireDate.formatted(date: .omitted, time: .shortened)
             return upcoming.count == 1 ? "Next notification at \(time)" : "Over \(upcoming.count) notifications · next at \(time)"
         }
+        // What's left came in notifications you didn't answer.
+        if cardsLeft > 0 { return "From earlier notifications" }
         if let nextReminder, !Calendar.current.isDateInToday(nextReminder) {
             return "No more notifications today · next \(Calendar.current.isDateInTomorrow(nextReminder) ? "tomorrow" : nextReminder.formatted(.dateTime.weekday())) at \(nextReminder.formatted(date: .omitted, time: .shortened))"
         }
